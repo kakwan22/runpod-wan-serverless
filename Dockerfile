@@ -36,7 +36,7 @@ RUN cd custom_nodes/ComfyUI-AnimateDiff-Evolved && pip install -r requirements.t
 RUN cd custom_nodes/ComfyUI-WAN2_I2V_nodes && pip install -r requirements.txt || true
 
 # Download models during build (avoid GitHub file size limits)
-RUN wget -O /ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10.safetensors "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/v10/wan2.2-i2v-rapid-aio-v10.safetensors"
+RUN wget -O /ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/v10/wan2.2-i2v-rapid-aio-v10.safetensors"
 RUN wget -O /ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors "https://huggingface.co/lllyasviel/misc/resolve/main/clip_vision_vit_h.safetensors"
 
 # Install handler dependencies
