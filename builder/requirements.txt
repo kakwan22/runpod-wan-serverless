@@ -1,0 +1,5 @@
+# Dependencies required by your handler
+runpod
+requests
+pillow
+opencv-python
