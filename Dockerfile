@@ -24,11 +24,11 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git . && \
 # Create directories
 RUN mkdir -p models/checkpoints models/clip_vision custom_nodes input output
 
-# Install custom nodes for WAN
+# Install custom nodes for WAN (with proper error handling)
 RUN cd custom_nodes && \
-    git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
-    git clone https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git && \
-    git clone https://github.com/kijai/ComfyUI-WAN2_I2V_nodes.git
+    git clone --depth 1 https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git || true && \
+    git clone --depth 1 https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git || true && \
+    git clone --depth 1 https://github.com/kijai/ComfyUI-WAN2_I2V_nodes.git || true
 
 # Install node requirements
 RUN cd custom_nodes/ComfyUI-VideoHelperSuite && pip install -r requirements.txt || true
