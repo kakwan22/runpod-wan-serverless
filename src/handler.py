@@ -7,8 +7,29 @@ import os
 import time
 import subprocess
 
+def check_model_hash():
+    """Check and print model file hashes for debugging"""
+    try:
+        import hashlib
+        model_path = "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
+        if os.path.exists(model_path):
+            # Read first 10MB to get a quick hash
+            with open(model_path, 'rb') as f:
+                data = f.read(10 * 1024 * 1024)  # First 10MB
+                hash_md5 = hashlib.md5(data).hexdigest()
+                print(f"🔍 Model hash (first 10MB): {hash_md5}")
+                file_size = os.path.getsize(model_path)
+                print(f"📦 Model size: {file_size / (1024**3):.2f} GB")
+        else:
+            print(f"❌ Model not found at {model_path}")
+    except Exception as e:
+        print(f"⚠️ Could not check model hash: {e}")
+
 def start_comfyui():
     """Start ComfyUI server if not already running"""
+    # Check model hash for debugging
+    check_model_hash()
+    
     # First check if ComfyUI is already running
     try:
         response = requests.get("http://localhost:8188/system_stats", timeout=5)
