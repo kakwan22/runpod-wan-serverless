@@ -8,13 +8,24 @@ import time
 import subprocess
 
 def start_comfyui():
-    """Start ComfyUI server"""
+    """Start ComfyUI server if not already running"""
+    # First check if ComfyUI is already running
+    try:
+        response = requests.get("http://localhost:8188/system_stats", timeout=5)
+        if response.ok:
+            print("ComfyUI server is already running!")
+            return True
+    except:
+        pass
+    
     print("Starting ComfyUI server...")
     
-    # Change to ComfyUI directory and start server
+    # Start server in background
     process = subprocess.Popen(
         ["python", "main.py", "--listen", "0.0.0.0", "--port", "8188"],
-        cwd="/ComfyUI"
+        cwd="/ComfyUI",
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
     )
     
     # Wait for ComfyUI to be ready
