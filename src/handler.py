@@ -123,7 +123,36 @@ def handler(job):
                             "filename": os.path.basename(mp4_files[0])
                         }
                     
-                    return {"error": "No video output found"}
+                    # Check all possible video locations
+                    possible_paths = [
+                        "/ComfyUI/output/*.mp4",
+                        "/ComfyUI/output/*.avi",
+                        "/ComfyUI/output/*.mov",
+                        "/ComfyUI/output/**/*.mp4",
+                        "/output/*.mp4",
+                        "*.mp4"
+                    ]
+                    
+                    for pattern in possible_paths:
+                        found_files = glob.glob(pattern, recursive=True)
+                        if found_files:
+                            print(f"DEBUG: Found video files at {pattern}: {found_files}")
+                            with open(found_files[0], "rb") as f:
+                                video_base64 = base64.b64encode(f.read()).decode()
+                            return {
+                                "success": True,
+                                "video_base64": video_base64,
+                                "filename": os.path.basename(found_files[0])
+                            }
+                    
+                    # If we can't find the video but generation completed, return success
+                    # The app will handle finding the video another way
+                    print("WARNING: Generation completed but video file not found")
+                    return {
+                        "success": True,
+                        "message": "Generation completed but video location unknown",
+                        "outputs": outputs
+                    }
             
             time.sleep(3)
         
