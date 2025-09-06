@@ -54,6 +54,19 @@ def handler(job):
         workflow = job_input.get("workflow", {})
         client_id = str(uuid.uuid4())
         
+        # Clear input directory if requested (cache busting)
+        clear_cache = job_input.get("clear_cache", False)
+        clear_input_dir = job_input.get("clear_input_dir", False)
+        
+        if clear_cache or clear_input_dir:
+            print("🧹 Clearing ComfyUI input directory to prevent caching...")
+            import shutil
+            input_dir = "/ComfyUI/input"
+            if os.path.exists(input_dir):
+                shutil.rmtree(input_dir)
+                os.makedirs(input_dir, exist_ok=True)
+                print("✅ Input directory cleared!")
+        
         # Handle images (your app sends array of image objects)
         images = job_input.get("images", [])
         for image_obj in images:
@@ -68,6 +81,12 @@ def handler(job):
                 # Save image to ComfyUI input directory
                 image_bytes = base64.b64decode(image_data)
                 os.makedirs("/ComfyUI/input", exist_ok=True)
+                
+                # Log image hash for debugging
+                import hashlib
+                image_hash = hashlib.md5(image_bytes).hexdigest()[:16]
+                print(f"📷 Saving image {image_name} with hash: {image_hash}")
+                
                 with open(f"/ComfyUI/input/{image_name}", "wb") as f:
                     f.write(image_bytes)
         
@@ -125,13 +144,17 @@ def handler(job):
                     mp4_files = glob.glob("/ComfyUI/output/*.mp4")
                     if mp4_files:
                         print(f"DEBUG: Found MP4 files: {mp4_files}")
-                        # Return the first MP4 file found
-                        with open(mp4_files[0], "rb") as f:
+                        # Return the most recently modified file (newest)
+                        mp4_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+                        newest_file = mp4_files[0]
+                        print(f"DEBUG: Using newest file: {newest_file}")
+                        
+                        with open(newest_file, "rb") as f:
                             video_base64 = base64.b64encode(f.read()).decode()
                         return {
                             "success": True,
                             "video_base64": video_base64,
-                            "filename": os.path.basename(mp4_files[0])
+                            "filename": os.path.basename(newest_file)
                         }
                     
                     # Check all possible video locations
