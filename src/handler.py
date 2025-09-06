@@ -90,61 +90,9 @@ def handler(job):
                 with open(f"/ComfyUI/input/{image_name}", "wb") as f:
                     f.write(image_bytes)
         
-        # Smart resolution calculation for auto resolution (same as local scripts)
-        workflow_dict = dict(workflow)  # Make workflow mutable
-        if workflow_dict.get("8", {}).get("inputs", {}).get("width") == 0:
-            try:
-                from PIL import Image
-                import io
-                
-                # Get first image for dimension analysis
-                if images:
-                    image_data = images[0].get("image", "")
-                    if image_data.startswith("data:image"):
-                        image_data = image_data.split(",")[1]
-                    
-                    image_bytes = base64.b64decode(image_data)
-                    image = Image.open(io.BytesIO(image_bytes))
-                    input_width, input_height = image.size
-                    
-                    print(f"📐 Input image dimensions: {input_width}x{input_height}")
-                    
-                    # Same supported resolutions as local script
-                    supported_resolutions = [
-                        (512, 512), (640, 640), (768, 768), (1024, 1024),
-                        (512, 768), (768, 512), (640, 960), (960, 640),
-                        (1024, 768), (768, 1024)
-                    ]
-                    
-                    # Find closest resolution by aspect ratio and size
-                    input_aspect = input_width / input_height
-                    best_match = (640, 640)
-                    best_score = float('inf')
-                    
-                    for width, height in supported_resolutions:
-                        aspect = width / height
-                        aspect_diff = abs(aspect - input_aspect)
-                        size_diff = abs((width * height) - (input_width * input_height)) / (input_width * input_height)
-                        score = aspect_diff * 2 + size_diff  # Weight aspect ratio more
-                        
-                        if score < best_score:
-                            best_score = score
-                            best_match = (width, height)
-                    
-                    # Update workflow with calculated resolution
-                    workflow_dict["8"]["inputs"]["width"] = best_match[0]
-                    workflow_dict["8"]["inputs"]["height"] = best_match[1]
-                    
-                    print(f"🎯 Auto resolution selected: {best_match[0]}x{best_match[1]} (aspect: {best_match[0]/best_match[1]:.2f})")
-                    
-            except Exception as e:
-                print(f"⚠️ Error calculating auto resolution: {e}, using default 640x640")
-                workflow_dict["8"]["inputs"]["width"] = 640
-                workflow_dict["8"]["inputs"]["height"] = 640
-        
         # Queue workflow to ComfyUI
         queue_response = requests.post("http://localhost:8188/prompt", json={
-            "prompt": workflow_dict,
+            "prompt": workflow,
             "client_id": client_id
         })
         
