@@ -12,14 +12,25 @@ def check_model_hash():
     try:
         import hashlib
         model_path = "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
+        expected_hash = "89DE1569285E0BB763FE67A33A1CAC2C"  # Your local model hash
+        
         if os.path.exists(model_path):
-            # Read first 10MB to get a quick hash
+            # Get full file hash
+            hash_md5 = hashlib.md5()
             with open(model_path, 'rb') as f:
-                data = f.read(10 * 1024 * 1024)  # First 10MB
-                hash_md5 = hashlib.md5(data).hexdigest()
-                print(f"🔍 Model hash (first 10MB): {hash_md5}")
-                file_size = os.path.getsize(model_path)
-                print(f"📦 Model size: {file_size / (1024**3):.2f} GB")
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            
+            actual_hash = hash_md5.hexdigest().upper()
+            file_size = os.path.getsize(model_path)
+            
+            print(f"🔍 Model hash: {actual_hash}")
+            print(f"📦 Model size: {file_size / (1024**3):.2f} GB")
+            
+            if actual_hash != expected_hash:
+                print(f"⚠️ Model hash mismatch! Expected: {expected_hash}")
+                print(f"❗ This explains the quality difference - different model files!")
+                # Could auto-download correct model here if needed
         else:
             print(f"❌ Model not found at {model_path}")
     except Exception as e:
