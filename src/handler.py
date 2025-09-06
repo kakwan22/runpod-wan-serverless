@@ -86,10 +86,16 @@ def handler(job):
                     result = history[prompt_id]
                     outputs = result.get("outputs", {})
                     
+                    print(f"DEBUG: Available outputs: {list(outputs.keys())}")
+                    
+                    # Check all output nodes for video
                     for node_id, output in outputs.items():
+                        print(f"DEBUG: Node {node_id} output keys: {list(output.keys())}")
+                        
                         if "videos" in output:
                             video_info = output["videos"][0]
                             video_path = f"/ComfyUI/output/{video_info['filename']}"
+                            print(f"DEBUG: Found video at {video_path}")
                             
                             if os.path.exists(video_path):
                                 with open(video_path, "rb") as f:
@@ -100,6 +106,22 @@ def handler(job):
                                     "video_base64": video_base64,
                                     "filename": video_info['filename']
                                 }
+                            else:
+                                print(f"ERROR: Video file not found at {video_path}")
+                    
+                    # Also check for any MP4 files in output directory
+                    import glob
+                    mp4_files = glob.glob("/ComfyUI/output/*.mp4")
+                    if mp4_files:
+                        print(f"DEBUG: Found MP4 files: {mp4_files}")
+                        # Return the first MP4 file found
+                        with open(mp4_files[0], "rb") as f:
+                            video_base64 = base64.b64encode(f.read()).decode()
+                        return {
+                            "success": True,
+                            "video_base64": video_base64,
+                            "filename": os.path.basename(mp4_files[0])
+                        }
                     
                     return {"error": "No video output found"}
             
