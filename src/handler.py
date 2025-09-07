@@ -350,7 +350,10 @@ def handler(job):
             "client_id": client_id
         })
         
+        print(f"🔍 Queue response: {queue_response.status_code} - {queue_response.text[:200]}")
+        
         if not queue_response.ok:
+            print(f"😭 QUEUE FAILED! Full error: {queue_response.text}")
             return {
                 "error": f"Failed to queue workflow: {queue_response.text}",
                 "debug": debug_info
@@ -359,7 +362,11 @@ def handler(job):
         # Get prompt ID and wait for completion
         queue_result = queue_response.json()
         prompt_id = queue_result.get("prompt_id")
-        print(f"📋 Queued job with prompt_id: {prompt_id}")
+        print(f"📋 SUCCESS! Queued with prompt_id: {prompt_id}")
+        
+        if not prompt_id:
+            print(f"😭 NO PROMPT ID! Full response: {queue_result}")
+            return {"error": "No prompt_id returned", "debug": debug_info}
         
         # Poll for completion with intelligent timeout and error handling
         max_wait_time = 600  # 10 minutes maximum
@@ -392,10 +399,37 @@ def handler(job):
                     if prompt_id in history:
                         # Job completed - process results
                         result = history[prompt_id]
+                        # EXPOSE ALL COMFYUI LOGS AND ERRORS
+                        print(f"🔍 FULL WORKFLOW RESULT: {json.dumps(result, indent=2, default=str)}")
                         
                         # Check for errors in the workflow execution
                         status = result.get("status", {})
+                        print(f"🔍 WORKFLOW STATUS: {status}")
+                        
+                        # Check for ANY error field anywhere in the result
+                        def find_errors(obj, path=""):
+                            errors = []
+                            if isinstance(obj, dict):
+                                for key, value in obj.items():
+                                    current_path = f"{path}.{key}" if path else key
+                                    if "error" in key.lower():
+                                        errors.append(f"{current_path}: {value}")
+                                    errors.extend(find_errors(value, current_path))
+                            elif isinstance(obj, list):
+                                for i, item in enumerate(obj):
+                                    errors.extend(find_errors(item, f"{path}[{i}]"))
+                            return errors
+                        
+                        all_errors = find_errors(result)
+                        if all_errors:
+                            print(f"😭 FOUND ERRORS IN RESULT: {all_errors}")
+                            return {
+                                "error": f"Workflow errors: {'; '.join(all_errors)}",
+                                "debug": debug_info
+                            }
+                        
                         if "error" in status:
+                            print(f"😭 WORKFLOW ERROR FOUND: {status['error']}")
                             return {
                                 "error": f"Workflow failed: {status['error']}",
                                 "debug": debug_info
@@ -405,12 +439,11 @@ def handler(job):
                         print(f"✅ HOORAY! Job completed successfully! 🎉")
                         print(f"📊 NICE! Found outputs from {len(outputs)} nodes: {list(outputs.keys())}")
                         
-                        # Debug: print all outputs to understand structure
-                        print(f"🔍 COOL! Let's see what each node produced:")
-                        for node_id, node_output in outputs.items():
-                            print(f"  📦 Node {node_id}: {list(node_output.keys()) if isinstance(node_output, dict) else type(node_output)}")
-                        
-                        print(f"🔍 Full output structure (first 500 chars): {json.dumps(outputs, indent=2, default=str)[:500]}")
+                        # Simple output analysis 
+                        if outputs:
+                            print(f"📦 Node outputs: {list(outputs.keys())}")
+                        else:
+                            print("🤔 CRITICAL: No outputs from ANY nodes - workflow failed silently!")
                         
                         # SIMPLIFIED VIDEO DETECTION: Just search for video files directly
                         # VHS_VideoCombine saves files but may not return them in outputs
