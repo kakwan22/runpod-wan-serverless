@@ -1,5 +1,5 @@
 # RunPod GitHub Integration Dockerfile - Matched to local versions
-FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
 
 # Install system dependencies and Python 3.12 (closest to your 3.13.7)
 RUN apt-get update && apt-get install -y \
