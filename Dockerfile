@@ -1,19 +1,23 @@
 # CUDA 12.1 as requested - RunPod 2025
 FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
 
-# Install system dependencies - only essential packages
+# Install system dependencies with retry logic
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y \
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     git \
     wget \
+    ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set python3 as default
-RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN ln -s /usr/bin/pip3 /usr/bin/pip
+# Set python3 as default and upgrade pip
+RUN ln -s /usr/bin/python3 /usr/bin/python && \
+    python3 -m pip install --upgrade pip setuptools wheel
 
 WORKDIR /ComfyUI
 
