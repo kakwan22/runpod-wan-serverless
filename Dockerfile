@@ -1,18 +1,19 @@
-# ComfyUI Docker for RunPod - 2025
-FROM python:3.11
+# Use proven working ComfyUI base
+FROM nvidia/cuda:11.8-devel-ubuntu22.04
 
 # Install system dependencies
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
     git \
     wget \
-    curl \
-    ffmpeg \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Set python3 as default
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 WORKDIR /ComfyUI
 
