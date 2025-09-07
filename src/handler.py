@@ -99,8 +99,10 @@ def start_comfyui():
 def handler(job):
     """RunPod serverless handler"""
     try:
+        print("🚀 Handler Version: 2024-01-09-NO-TIMEOUT")  # Version check
+        
         # Collect debug info to return in response
-        debug_info = {}
+        debug_info = {"handler_version": "2024-01-09-NO-TIMEOUT"}
         
         # Check models without printing (return in response instead)
         try:
@@ -194,8 +196,8 @@ def handler(job):
         queue_result = queue_response.json()
         prompt_id = queue_result.get("prompt_id")
         
-        # Poll for completion (30 minute timeout for very long videos)
-        timeout = 1800
+        # Poll for completion - NO TIMEOUT (wait as long as needed)
+        timeout = 999999  # Effectively no timeout
         start_time = time.time()
         
         while time.time() - start_time < timeout:
