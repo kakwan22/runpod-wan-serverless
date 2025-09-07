@@ -1,5 +1,5 @@
 # RunPod GitHub Integration Dockerfile - Optimized build
-FROM runpod/pytorch:2.2.0-py3.11-cuda12.1.1-devel-ubuntu22.04
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel
 
 # Install minimal dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
