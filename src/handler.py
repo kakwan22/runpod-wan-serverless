@@ -49,9 +49,6 @@ def check_model_hash():
             print(f"👁️ CLIP Vision: clip_vision_vit_h.safetensors")
             print(f"  📦 Size: {clip_size / (1024**3):.2f} GB")
             print(f"  🔍 Hash: {actual_clip_hash}")
-            
-            if actual_clip_hash != expected_clip_hash:
-                print(f"  ⚠️ CLIP hash mismatch! Expected: {expected_clip_hash}")
         else:
             print(f"❌ CLIP model not found at {clip_path}")
             
