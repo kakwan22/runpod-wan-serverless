@@ -15,9 +15,8 @@ RUN apt-get clean && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set python3 as default and upgrade pip (with --break-system-packages for Ubuntu 24.04)
-RUN ln -s /usr/bin/python3 /usr/bin/python && \
-    python3 -m pip install --break-system-packages --upgrade pip setuptools wheel
+# Set python3 as default - skip upgrading system packages to avoid conflicts
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 WORKDIR /ComfyUI
 
