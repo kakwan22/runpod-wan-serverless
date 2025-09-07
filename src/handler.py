@@ -33,6 +33,23 @@ def check_model_hash():
         else:
             print(f"❌ WAN model not found at {model_path}")
             
+        # Check WAN VAE model (CRITICAL for matching local results)
+        vae_path = "/ComfyUI/models/vae/wan2.2_vae.safetensors"
+        if os.path.exists(vae_path):
+            hash_md5 = hashlib.md5()
+            with open(vae_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            
+            vae_hash = hash_md5.hexdigest().upper()
+            vae_size = os.path.getsize(vae_path)
+            
+            print(f"🎨 WAN VAE: wan2.2_vae.safetensors")
+            print(f"  📦 Size: {vae_size / (1024**3):.2f} GB")
+            print(f"  🔍 Hash: {vae_hash}")
+        else:
+            print(f"❌ WAN VAE not found at {vae_path}")
+            
         # Check CLIP vision model
         clip_path = "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
         expected_clip_hash = "EF7BC1CA20305F80D0E4E1E3B27D9568"  # Your local CLIP hash

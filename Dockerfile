@@ -50,12 +50,17 @@ RUN pip install --no-cache-dir \
     pillow \
     opencv-python
 
-# Download required models
-RUN wget -O models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
+# Download required models with resume capability
+RUN wget -c -O models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
     "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/v10/wan2.2-i2v-rapid-aio-v10.safetensors"
 
-RUN wget -O models/clip_vision/clip_vision_vit_h.safetensors \
+RUN wget -c -O models/clip_vision/clip_vision_vit_h.safetensors \
     "https://huggingface.co/lllyasviel/misc/resolve/main/clip_vision_vit_h.safetensors"
+
+# Download WAN VAE (CRITICAL - this fixes result differences!)
+RUN mkdir -p models/vae && \
+    wget -c -O models/vae/wan2.2_vae.safetensors \
+    "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/vae/diffusion_pytorch_model.safetensors"
 
 # Copy handler
 COPY src/handler.py /handler.py
