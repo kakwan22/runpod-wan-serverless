@@ -197,8 +197,7 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
                 "crf": settings.get('crf', 19),
                 "save_metadata": True,
                 "pingpong": False,
-                "save_output": True,
-                "optimize": True
+                "save_output": True
             },
             "class_type": "VHS_VideoCombine"
         }
@@ -209,10 +208,14 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
 def handler(job):
     """RunPod serverless handler for Video Generator App"""
     try:
-        print("🚀 Video Generator Handler Version: 2025-01-07")
+        print("🚀 YAY! Video Generator Handler starting! Version: 2025-01-07")
+        print("🎉 HELLO! We're processing a new video generation job!")
         
         # Collect debug info to return in response
         debug_info = {"handler_version": "2025-01-07", "job_id": job.get("id", "unknown")}
+        
+        print(f"📋 YAY! Job details received: ID = {job.get('id', 'unknown')}")
+        print(f"🔍 NICE! Job input structure: {list(job.get('input', {}).keys())}")
         
         # Validate required models (no volume, models downloaded in Docker build)
         required_models = {
@@ -221,26 +224,34 @@ def handler(job):
             "clip_vision": "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
         }
         
+        print("🔍 YAY! Let's check if our AI models are ready...")
         missing_models = []
         for model_name, model_path in required_models.items():
             if not os.path.exists(model_path):
                 missing_models.append(f"{model_name} ({model_path})")
                 debug_info[f"{model_name}_status"] = "NOT FOUND"
-                print(f"❌ Missing model: {model_path}")
+                print(f"❌ OH NO! Missing model: {model_path}")
             else:
                 file_size = os.path.getsize(model_path)
                 debug_info[f"{model_name}_status"] = f"OK ({file_size / (1024**3):.2f} GB)"
-                print(f"✅ Found model: {model_path} ({file_size / (1024**3):.2f} GB)")
+                print(f"✅ AWESOME! Found {model_name}: {model_path} ({file_size / (1024**3):.2f} GB)")
+                print(f"🎉 GREAT! The {model_name} is ready and loaded!")
         
         if missing_models:
+            print("💔 Oh no! Some models are missing. Can't generate videos without them!")
             return {
                 "error": f"Missing required models: {', '.join(missing_models)}",
                 "debug": debug_info
             }
         
+        print("🎬 FANTASTIC! All AI models are loaded and ready to generate amazing videos!")
+        
         # Start ComfyUI if not running
+        print("🚀 EXCITING! Starting ComfyUI server...")
         if not start_comfyui():
+            print("😭 OH NO! ComfyUI server failed to start!")
             return {"error": "Failed to start ComfyUI server", "debug": debug_info}
+        print("🎉 WOOHOO! ComfyUI server is running and ready!")
         
         # Extract job input from our Video Generator App
         job_input = job.get("input", {})
@@ -320,8 +331,20 @@ def handler(job):
         
         client_id = str(uuid.uuid4())
         
+        # Add VHS detection and debugging
+        print("🔍 COOL! Let's check what nodes we have in our workflow...")
+        for node_id, node_data in workflow.items():
+            class_type = node_data.get("class_type", "Unknown")
+            print(f"  📦 Node {node_id}: {class_type}")
+            if class_type == "VHS_VideoCombine":
+                print(f"  🎥 FOUND VHS_VideoCombine! Parameters: {list(node_data.get('inputs', {}).keys())}")
+                vhs_inputs = node_data.get('inputs', {})
+                print(f"    📹 filename_prefix: {vhs_inputs.get('filename_prefix', 'not set')}")
+                print(f"    🎞️ format: {vhs_inputs.get('format', 'not set')}")
+                print(f"    💾 save_output: {vhs_inputs.get('save_output', 'not set')}")
+        
         # Queue workflow to ComfyUI
-        print("🎬 Queuing video generation workflow...")
+        print("🎬 AWESOME! Queuing video generation workflow to ComfyUI...")
         queue_response = requests.post("http://localhost:8188/prompt", json={
             "prompt": workflow,
             "client_id": client_id
@@ -379,25 +402,34 @@ def handler(job):
                             }
                         
                         outputs = result.get("outputs", {})
-                        print(f"✅ Job completed! Processing outputs from nodes: {list(outputs.keys())}")
+                        print(f"✅ HOORAY! Job completed successfully! 🎉")
+                        print(f"📊 NICE! Found outputs from {len(outputs)} nodes: {list(outputs.keys())}")
                         
                         # Debug: print all outputs to understand structure
-                        print(f"🔍 Output structure: {json.dumps(outputs, indent=2, default=str)[:500]}")
+                        print(f"🔍 COOL! Let's see what each node produced:")
+                        for node_id, node_output in outputs.items():
+                            print(f"  📦 Node {node_id}: {list(node_output.keys()) if isinstance(node_output, dict) else type(node_output)}")
+                        
+                        print(f"🔍 Full output structure (first 500 chars): {json.dumps(outputs, indent=2, default=str)[:500]}")
                         
                         # SIMPLIFIED VIDEO DETECTION: Just search for video files directly
                         # VHS_VideoCombine saves files but may not return them in outputs
-                        print("🔍 Searching for generated video files...")
+                        print("🔍 EXCITING! Let's hunt for our generated video files...")
                         
                         # First, try to find video files by our prefix
                         video_found = False
                         video_path = None
                         
                         # Check for our prefixed files first
+                        print("🎯 SEARCHING for files with 'runpod_video' prefix...")
                         prefix_files = glob.glob("/ComfyUI/output/runpod_video*")
                         if prefix_files:
                             video_path = max(prefix_files, key=os.path.getmtime)  # Get most recent
-                            print(f"✅ Found prefixed video: {video_path}")
+                            print(f"🎉 BINGO! Found our video with prefix: {video_path}")
+                            print(f"📏 File size: {os.path.getsize(video_path) / 1024 / 1024:.2f} MB")
                             video_found = True
+                        else:
+                            print("🤔 Hmm, no files with 'runpod_video' prefix found...")
                         
                         # If no prefixed file, search for any video files
                         if not video_found:
