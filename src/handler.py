@@ -380,8 +380,27 @@ def handler(job):
                         outputs = result.get("outputs", {})
                         print(f"✅ Job completed! Processing outputs from nodes: {list(outputs.keys())}")
                         
-                        # Find video output from VideoHelperSuite node
+                        # Debug: print all outputs to understand structure
+                        print(f"🔍 Output structure: {json.dumps(outputs, indent=2, default=str)[:500]}")
+                        
+                        # Find video output from VideoHelperSuite node (node 11)
                         video_found = False
+                        
+                        # Check node 11 specifically (VHS_VideoCombine)
+                        if "11" in outputs:
+                            print(f"🔍 Node 11 output: {outputs['11']}")
+                            node_output = outputs["11"]
+                            if isinstance(node_output, dict) and "videos" in node_output:
+                                video_info = node_output["videos"][0]
+                                video_path = f"/ComfyUI/output/{video_info['filename']}"
+                            elif isinstance(node_output, dict) and "video" in node_output:
+                                video_info = node_output["video"][0] if isinstance(node_output["video"], list) else node_output["video"]
+                                video_path = f"/ComfyUI/output/{video_info.get('filename', 'runpod_video_00001.mp4')}"
+                            else:
+                                # VHS might not return video info, just save directly
+                                print("⚠️ Node 11 doesn't have video info, checking for files...")
+                        
+                        # Also check all nodes for video output
                         for node_id, output in outputs.items():
                             if "videos" in output and output["videos"]:
                                 video_info = output["videos"][0]
@@ -413,14 +432,33 @@ def handler(job):
                                 else:
                                     print(f"❌ Video file missing: {video_path}")
                         
+                        # List all files in output directory for debugging
+                        try:
+                            output_files = os.listdir("/ComfyUI/output/")
+                            print(f"📁 Files in /ComfyUI/output/: {output_files}")
+                        except Exception as e:
+                            print(f"❌ Could not list output directory: {e}")
+                        
                         # Fallback: search for any video files in output directory
-                        video_extensions = ['*.mp4', '*.avi', '*.mov', '*.mkv']
+                        print("🔍 Searching for video files in /ComfyUI/output/...")
+                        video_extensions = ['*.mp4', '*.avi', '*.mov', '*.mkv', '*.webm']
+                        all_found_files = []
                         for ext in video_extensions:
                             found_files = glob.glob(f"/ComfyUI/output/{ext}")
                             if found_files:
-                                # Use the most recent file
-                                newest_file = max(found_files, key=os.path.getmtime)
-                                print(f"📹 Found fallback video: {newest_file}")
+                                all_found_files.extend(found_files)
+                                print(f"  Found {len(found_files)} {ext} files")
+                        
+                        # Also check with prefix
+                        prefix_search = glob.glob(f"/ComfyUI/output/runpod_video*")
+                        if prefix_search:
+                            all_found_files.extend(prefix_search)
+                            print(f"  Found {len(prefix_search)} files with runpod_video prefix")
+                        
+                        if all_found_files:
+                            # Use the most recent file
+                            newest_file = max(all_found_files, key=os.path.getmtime)
+                            print(f"📹 Found fallback video: {newest_file}")
                                 
                                 with open(newest_file, "rb") as f:
                                     video_base64 = base64.b64encode(f.read()).decode()
