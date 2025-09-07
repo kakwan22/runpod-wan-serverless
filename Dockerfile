@@ -56,9 +56,13 @@ RUN pip install --no-cache-dir --break-system-packages \
     pillow \
     opencv-python
 
-# Copy setup script for volume models
-COPY setup-models.sh /setup-models.sh
-RUN chmod +x /setup-models.sh
+# Download models directly (cached layer - won't re-download unless changed)
+RUN cd models/checkpoints && \
+    wget -O wan2.2-i2v-rapid-aio-v10-nsfw.safetensors "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" && \
+    cd ../vae && \
+    wget -O wan2.2_vae.safetensors "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2_vae.safetensors" && \
+    cd ../clip_vision && \
+    wget -O clip_vision_vit_h.safetensors "https://huggingface.co/openai/clip-vit-large-patch14/resolve/main/pytorch_model.bin"
 
 # Copy handler
 COPY src/handler.py /handler.py
