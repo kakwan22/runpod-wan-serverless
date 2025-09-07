@@ -99,9 +99,46 @@ def start_comfyui():
 def handler(job):
     """RunPod serverless handler"""
     try:
+        # Collect debug info to return in response
+        debug_info = {}
+        
+        # Check models without printing (return in response instead)
+        try:
+            import hashlib
+            
+            # Check WAN model
+            model_path = "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
+            if os.path.exists(model_path):
+                hash_md5 = hashlib.md5()
+                with open(model_path, 'rb') as f:
+                    # Just first 10MB for speed
+                    data = f.read(10 * 1024 * 1024)
+                    hash_md5.update(data)
+                
+                debug_info["wan_model_hash"] = hash_md5.hexdigest().upper()
+                debug_info["wan_model_size_gb"] = os.path.getsize(model_path) / (1024**3)
+            else:
+                debug_info["wan_model"] = "NOT FOUND"
+                
+            # Check CLIP model
+            clip_path = "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
+            if os.path.exists(clip_path):
+                hash_md5 = hashlib.md5()
+                with open(clip_path, 'rb') as f:
+                    data = f.read(10 * 1024 * 1024)
+                    hash_md5.update(data)
+                
+                debug_info["clip_hash"] = hash_md5.hexdigest().upper()
+                debug_info["clip_size_gb"] = os.path.getsize(clip_path) / (1024**3)
+            else:
+                debug_info["clip_model"] = "NOT FOUND"
+                
+        except Exception as e:
+            debug_info["hash_check_error"] = str(e)
+        
         # Start ComfyUI if not running
         if not start_comfyui():
-            return {"error": "Failed to start ComfyUI server"}
+            return {"error": "Failed to start ComfyUI server", "debug": debug_info}
         
         # Extract job input
         job_input = job.get("input", {})
@@ -208,7 +245,8 @@ def handler(job):
                         return {
                             "success": True,
                             "video_base64": video_base64,
-                            "filename": os.path.basename(newest_file)
+                            "filename": os.path.basename(newest_file),
+                            "debug": debug_info
                         }
                     
                     # Check all possible video locations
