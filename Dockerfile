@@ -11,6 +11,7 @@ RUN apt-get clean && \
     python3-pip \
     git \
     wget \
+    curl \
     ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
