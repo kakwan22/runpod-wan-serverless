@@ -384,112 +384,74 @@ def handler(job):
                         # Debug: print all outputs to understand structure
                         print(f"🔍 Output structure: {json.dumps(outputs, indent=2, default=str)[:500]}")
                         
-                        # Find video output from VideoHelperSuite node (node 11)
+                        # SIMPLIFIED VIDEO DETECTION: Just search for video files directly
+                        # VHS_VideoCombine saves files but may not return them in outputs
+                        print("🔍 Searching for generated video files...")
+                        
+                        # First, try to find video files by our prefix
                         video_found = False
+                        video_path = None
                         
-                        # Check node 11 specifically (VHS_VideoCombine)
-                        if "11" in outputs:
-                            print(f"🔍 Node 11 output: {outputs['11']}")
-                            node_output = outputs["11"]
-                            if isinstance(node_output, dict) and "videos" in node_output:
-                                video_info = node_output["videos"][0]
-                                video_path = f"/ComfyUI/output/{video_info['filename']}"
-                            elif isinstance(node_output, dict) and "video" in node_output:
-                                video_info = node_output["video"][0] if isinstance(node_output["video"], list) else node_output["video"]
-                                video_path = f"/ComfyUI/output/{video_info.get('filename', 'runpod_video_00001.mp4')}"
-                            else:
-                                # VHS might not return video info, just save directly
-                                print("⚠️ Node 11 doesn't have video info, checking for files...")
+                        # Check for our prefixed files first
+                        prefix_files = glob.glob("/ComfyUI/output/runpod_video*")
+                        if prefix_files:
+                            video_path = max(prefix_files, key=os.path.getmtime)  # Get most recent
+                            print(f"✅ Found prefixed video: {video_path}")
+                            video_found = True
                         
-                        # Also check all nodes for video output
-                        for node_id, output in outputs.items():
-                            if "videos" in output and output["videos"]:
-                                video_info = output["videos"][0]
-                                video_path = f"/ComfyUI/output/{video_info['filename']}"
-                                
-                                if os.path.exists(video_path):
-                                    print(f"📹 Found video: {video_info['filename']}")
-                                    with open(video_path, "rb") as f:
-                                        video_base64 = base64.b64encode(f.read()).decode()
-                                    
-                                    # Parse resolution from filename or settings
-                                    resolution = settings.get('resolution', 'Unknown')
-                                    
-                                    # Clean up input directory after successful generation
-                                    try:
-                                        shutil.rmtree(input_dir)
-                                        print("🧹 Cleaned up input directory after successful generation")
-                                    except:
-                                        pass  # Not critical if cleanup fails
-                                    
-                                    return {
-                                        "success": True,
-                                        "video_base64": video_base64,
-                                        "filename": video_info['filename'],
-                                        "resolution": resolution,
-                                        "duration": elapsed,
-                                        "debug": debug_info
-                                    }
-                                else:
-                                    print(f"❌ Video file missing: {video_path}")
-                        
-                        # List all files in output directory for debugging
-                        try:
-                            output_files = os.listdir("/ComfyUI/output/")
-                            print(f"📁 Files in /ComfyUI/output/: {output_files}")
+                        # If no prefixed file, search for any video files
+                        if not video_found:
+                            print("🔍 Searching for any video files...")
+                            video_extensions = ['*.mp4', '*.avi', '*.mov', '*.mkv', '*.webm']
+                            all_found_files = []
                             
-                            # Also check subdirectories (VHS might create subdirs)
-                            for item in output_files:
-                                item_path = f"/ComfyUI/output/{item}"
-                                if os.path.isdir(item_path):
-                                    subdir_files = os.listdir(item_path)
-                                    print(f"📁 Files in /ComfyUI/output/{item}/: {subdir_files}")
-                        except Exception as e:
-                            print(f"❌ Could not list output directory: {e}")
+                            for ext in video_extensions:
+                                found_files = glob.glob(f"/ComfyUI/output/{ext}")
+                                if found_files:
+                                    all_found_files.extend(found_files)
+                                    print(f"  Found {len(found_files)} {ext} files")
                             
-                        # Also check if output directory exists and permissions
-                        print(f"📁 Output dir exists: {os.path.exists('/ComfyUI/output')}")
-                        print(f"📁 Output dir writable: {os.access('/ComfyUI/output', os.W_OK)}")
-                        
-                        # Fallback: search for any video files in output directory
-                        print("🔍 Searching for video files in /ComfyUI/output/...")
-                        video_extensions = ['*.mp4', '*.avi', '*.mov', '*.mkv', '*.webm']
-                        all_found_files = []
-                        for ext in video_extensions:
-                            found_files = glob.glob(f"/ComfyUI/output/{ext}")
-                            if found_files:
-                                all_found_files.extend(found_files)
-                                print(f"  Found {len(found_files)} {ext} files")
-                        
-                        # Also check with prefix
-                        prefix_search = glob.glob(f"/ComfyUI/output/runpod_video*")
-                        if prefix_search:
-                            all_found_files.extend(prefix_search)
-                            print(f"  Found {len(prefix_search)} files with runpod_video prefix")
-                        
-                        # Search recursively in case VHS creates subdirectories
-                        for ext in video_extensions:
-                            recursive_search = glob.glob(f"/ComfyUI/output/**/{ext}", recursive=True)
-                            if recursive_search:
-                                all_found_files.extend(recursive_search)
-                                print(f"  Found {len(recursive_search)} {ext} files recursively")
-                        
-                        if all_found_files:
-                            # Use the most recent file
-                            newest_file = max(all_found_files, key=os.path.getmtime)
-                            print(f"📹 Found fallback video: {newest_file}")
+                            # Search recursively in case VHS creates subdirectories
+                            for ext in video_extensions:
+                                recursive_search = glob.glob(f"/ComfyUI/output/**/{ext}", recursive=True)
+                                if recursive_search:
+                                    all_found_files.extend(recursive_search)
+                                    print(f"  Found {len(recursive_search)} {ext} files recursively")
                             
-                            with open(newest_file, "rb") as f:
+                            if all_found_files:
+                                video_path = max(all_found_files, key=os.path.getmtime)  # Most recent
+                                print(f"✅ Found fallback video: {video_path}")
+                                video_found = True
+                        
+                        # If we found a video file, return it
+                        if video_found and video_path and os.path.exists(video_path):
+                            print(f"📹 Processing video: {video_path}")
+                            
+                            with open(video_path, "rb") as f:
                                 video_base64 = base64.b64encode(f.read()).decode()
+                            
+                            # Clean up input directory after successful generation
+                            try:
+                                shutil.rmtree(input_dir)
+                                print("🧹 Cleaned up input directory after successful generation")
+                            except:
+                                pass  # Not critical if cleanup fails
                             
                             return {
                                 "success": True,
                                 "video_base64": video_base64,
-                                "filename": os.path.basename(newest_file),
+                                "filename": os.path.basename(video_path),
                                 "resolution": settings.get('resolution', 'Unknown'),
                                 "duration": elapsed,
                                 "debug": debug_info
                             }
+                        
+                        # Debug: List all files for troubleshooting
+                        try:
+                            output_files = os.listdir("/ComfyUI/output/")
+                            print(f"📁 DEBUG - All files in /ComfyUI/output/: {output_files}")
+                        except Exception as e:
+                            print(f"❌ Could not list output directory: {e}")
                         
                         # No video found despite completion
                         return {
