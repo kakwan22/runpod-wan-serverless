@@ -292,9 +292,22 @@ def handler(job):
         job_input = job.get("input", {})
         
         # Get image data and settings from our app
-        image_data = job_input.get("image")
-        image_name = job_input.get("imageName", f"input_{int(time.time())}.png")
-        settings = job_input.get("settings", {})
+        # Handle both old format (direct fields) and new format (images array)
+        images_array = job_input.get("images", [])
+        if images_array and len(images_array) > 0:
+            # New format: images array
+            image_data = images_array[0].get("image")
+            image_name = images_array[0].get("name", f"input_{int(time.time())}.png")
+            settings = job_input.get("settings", {})
+            print(f"🔍 Using new format: images array with {len(images_array)} images")
+        else:
+            # Old format: direct fields (fallback)
+            image_data = job_input.get("image")
+            image_name = job_input.get("imageName", f"input_{int(time.time())}.png") 
+            settings = job_input.get("settings", {})
+            print(f"🔍 Using old format: direct fields")
+        
+        print(f"🔍 Handler debug: image_data length: {len(image_data) if image_data else 0}, image_name: {image_name}")
         
         if not image_data:
             return {"error": "No image data provided", "debug": debug_info}
@@ -329,21 +342,28 @@ def handler(job):
         except Exception as e:
             return {"error": f"Failed to process image: {str(e)}", "debug": debug_info}
         
-        # Auto-calculate resolution if needed
-        if settings.get('resolution') == 'auto':
-            try:
-                from PIL import Image
-                with Image.open(image_path) as img:
-                    calculated_resolution = calculate_optimal_resolution(img.width, img.height)
-                    settings['resolution'] = calculated_resolution
-                    debug_info['calculated_resolution'] = calculated_resolution
-                    print(f"🎯 Auto-calculated resolution: {calculated_resolution} for {img.width}x{img.height} input")
-            except Exception as e:
-                print(f"⚠️ Failed to auto-calculate resolution: {e}")
-                settings['resolution'] = "768x512"  # Fallback
+        # Use the workflow provided by the client, or create one as fallback
+        workflow = job_input.get("workflow")
+        if not workflow:
+            print("⚠️ No workflow provided by client, creating default workflow")
+            # Auto-calculate resolution if needed
+            if settings.get('resolution') == 'auto':
+                try:
+                    from PIL import Image
+                    with Image.open(image_path) as img:
+                        calculated_resolution = calculate_optimal_resolution(img.width, img.height)
+                        settings['resolution'] = calculated_resolution
+                        debug_info['calculated_resolution'] = calculated_resolution
+                        print(f"🎯 Auto-calculated resolution: {calculated_resolution} for {img.width}x{img.height} input")
+                except Exception as e:
+                    print(f"⚠️ Failed to auto-calculate resolution: {e}")
+                    settings['resolution'] = "768x512"  # Fallback
+            
+            # Create workflow as fallback
+            workflow = create_comfyui_workflow(image_name, settings)
+        else:
+            print(f"✅ Using client-provided workflow with {len(workflow)} nodes")
         
-        # Create workflow for our app
-        workflow = create_comfyui_workflow(image_name, settings)
         client_id = str(uuid.uuid4())
         
         # Queue workflow to ComfyUI
