@@ -74,6 +74,18 @@ def check_model_hash():
 
 def start_comfyui():
     """Start ComfyUI server if not already running"""
+    # Setup models from volume first
+    import subprocess
+    print("🔧 Setting up models from volume...")
+    try:
+        result = subprocess.run(["/setup-models.sh"], capture_output=True, text=True)
+        if result.returncode == 0:
+            print("✅ Model setup successful")
+        else:
+            print(f"⚠️ Model setup warning: {result.stderr}")
+    except Exception as e:
+        print(f"⚠️ Model setup error: {e}")
+    
     # Check model hash for debugging
     check_model_hash()
     

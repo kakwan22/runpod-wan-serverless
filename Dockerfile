@@ -28,8 +28,8 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git . && \
 # Install ComfyUI requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create model directories
-RUN mkdir -p models/checkpoints models/clip_vision custom_nodes input output
+# Create local model directories and setup volume links
+RUN mkdir -p models/checkpoints models/clip_vision models/vae custom_nodes input output
 
 # Install WanVideoWrapper - using kijai's repo (more stable)
 RUN cd custom_nodes && \
@@ -50,17 +50,9 @@ RUN pip install --no-cache-dir \
     pillow \
     opencv-python
 
-# Download required models with resume capability
-RUN wget -c -O models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
-    "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/v10/wan2.2-i2v-rapid-aio-v10.safetensors"
-
-RUN wget -c -O models/clip_vision/clip_vision_vit_h.safetensors \
-    "https://huggingface.co/lllyasviel/misc/resolve/main/clip_vision_vit_h.safetensors"
-
-# Download WAN VAE (CRITICAL - this fixes result differences!)
-RUN mkdir -p models/vae && \
-    wget -c -O models/vae/wan2.2_vae.safetensors \
-    "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/vae/diffusion_pytorch_model.safetensors"
+# Copy setup script for volume models
+COPY setup-models.sh /setup-models.sh
+RUN chmod +x /setup-models.sh
 
 # Copy handler
 COPY src/handler.py /handler.py
