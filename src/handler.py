@@ -193,11 +193,12 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
                 "loop_count": 0,
                 "filename_prefix": "runpod_video",
                 "format": "video/h264-mp4",
-                "pix_fmt": "yuv420p",
+                "pix_fmt": "yuv420p", 
                 "crf": settings.get('crf', 19),
                 "save_metadata": True,
                 "pingpong": False,
-                "save_output": True
+                "save_output": True,
+                "optimize": True
             },
             "class_type": "VHS_VideoCombine"
         }
@@ -436,8 +437,19 @@ def handler(job):
                         try:
                             output_files = os.listdir("/ComfyUI/output/")
                             print(f"📁 Files in /ComfyUI/output/: {output_files}")
+                            
+                            # Also check subdirectories (VHS might create subdirs)
+                            for item in output_files:
+                                item_path = f"/ComfyUI/output/{item}"
+                                if os.path.isdir(item_path):
+                                    subdir_files = os.listdir(item_path)
+                                    print(f"📁 Files in /ComfyUI/output/{item}/: {subdir_files}")
                         except Exception as e:
                             print(f"❌ Could not list output directory: {e}")
+                            
+                        # Also check if output directory exists and permissions
+                        print(f"📁 Output dir exists: {os.path.exists('/ComfyUI/output')}")
+                        print(f"📁 Output dir writable: {os.access('/ComfyUI/output', os.W_OK)}")
                         
                         # Fallback: search for any video files in output directory
                         print("🔍 Searching for video files in /ComfyUI/output/...")
@@ -454,6 +466,13 @@ def handler(job):
                         if prefix_search:
                             all_found_files.extend(prefix_search)
                             print(f"  Found {len(prefix_search)} files with runpod_video prefix")
+                        
+                        # Search recursively in case VHS creates subdirectories
+                        for ext in video_extensions:
+                            recursive_search = glob.glob(f"/ComfyUI/output/**/{ext}", recursive=True)
+                            if recursive_search:
+                                all_found_files.extend(recursive_search)
+                                print(f"  Found {len(recursive_search)} {ext} files recursively")
                         
                         if all_found_files:
                             # Use the most recent file
