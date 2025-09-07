@@ -111,35 +111,28 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
         },
         "3": {
             "inputs": {
-                "vae_name": "wan2.2_vae.safetensors"
-            },
-            "class_type": "VAELoader",
-            "_meta": {"title": "Load VAE"}
-        },
-        "4": {
-            "inputs": {
                 "clip_name": "clip_vision_vit_h.safetensors"
             },
             "class_type": "CLIPVisionLoader",
             "_meta": {"title": "Load CLIP Vision"}
         },
-        "5": {
+        "4": {
             "inputs": {
                 "text": settings.get('prompt', ''),
-                "clip": ["2", 0]
+                "clip": ["2", 1]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {"title": "CLIP Text Encode (Prompt)"}
         },
-        "6": {
+        "5": {
             "inputs": {
                 "text": settings.get('negativePrompt', ''),
-                "clip": ["2", 0]
+                "clip": ["2", 1]
             },
             "class_type": "CLIPTextEncode",
             "_meta": {"title": "CLIP Text Encode (Negative)"}
         },
-        "7": {
+        "6": {
             "inputs": {
                 "width": width,
                 "height": height,
@@ -148,7 +141,7 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
             "class_type": "EmptyLatentImage",
             "_meta": {"title": "Empty Latent Image"}
         },
-        "8": {
+        "7": {
             "inputs": {
                 "seed": settings.get('seed', -1),
                 "steps": settings.get('steps', 4),
@@ -157,24 +150,24 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
                 "scheduler": settings.get('scheduler', 'beta'),
                 "denoise": settings.get('denoise', 1.0),
                 "model": ["2", 0],
-                "positive": ["5", 0],
-                "negative": ["6", 0],
-                "latent_image": ["7", 0]
+                "positive": ["4", 0],
+                "negative": ["5", 0],
+                "latent_image": ["6", 0]
             },
             "class_type": "KSampler",
             "_meta": {"title": "KSampler"}
         },
-        "9": {
+        "8": {
             "inputs": {
-                "samples": ["8", 0],
-                "vae": ["3", 0]
+                "samples": ["7", 0],
+                "vae": ["2", 2]
             },
             "class_type": "VAEDecode",
             "_meta": {"title": "VAE Decode"}
         },
-        "10": {
+        "9": {
             "inputs": {
-                "images": ["9", 0],
+                "images": ["8", 0],
                 "fps": settings.get('fps', 24),
                 "lossless": False,
                 "quality": 85,

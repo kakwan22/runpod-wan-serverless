@@ -68,11 +68,6 @@ RUN cd models/checkpoints && \
     curl -L --progress-bar -o wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
     "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" && \
     echo "✅ Downloaded WAN model ($(du -h wan2.2-i2v-rapid-aio-v10-nsfw.safetensors | cut -f1))" && \
-    cd ../vae && \
-    echo "🔽 Downloading VAE model..." && \
-    curl -L --progress-bar -o wan2.2_vae.safetensors \
-    "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2_vae.safetensors" && \
-    echo "✅ Downloaded VAE model ($(du -h wan2.2_vae.safetensors | cut -f1))" && \
     cd ../clip_vision && \
     echo "🔽 Downloading CLIP Vision model..." && \
     curl -L --progress-bar -o clip_vision_vit_h.safetensors \
