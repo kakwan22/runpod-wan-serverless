@@ -13,6 +13,7 @@ RUN apt-get clean && \
     wget \
     curl \
     ca-certificates \
+    ffmpeg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,11 +45,15 @@ RUN cd custom_nodes && \
     git checkout v1.7.4 || echo "v1.7.4 tag not found, using latest" && \
     pip install --no-cache-dir --break-system-packages -r requirements.txt
     
-# Verify VideoHelperSuite installation
+# Verify VideoHelperSuite installation and VHS nodes
 RUN cd custom_nodes/ComfyUI-VideoHelperSuite && \
     echo "VideoHelperSuite version check:" && \
     python -c "print('VideoHelperSuite installed successfully')" && \
-    ls -la *.py | head -5
+    ls -la *.py | head -5 && \
+    echo "Checking for VHS_VideoCombine node:" && \
+    grep -r "VHS_VideoCombine" . || echo "VHS_VideoCombine not found in text search" && \
+    echo "Available node files:" && \
+    find . -name "*.py" -exec grep -l "class.*Node" {} \;
 
 # Install additional dependencies for RunPod
 RUN pip install --no-cache-dir --break-system-packages \
