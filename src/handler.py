@@ -478,18 +478,18 @@ def handler(job):
                             # Use the most recent file
                             newest_file = max(all_found_files, key=os.path.getmtime)
                             print(f"📹 Found fallback video: {newest_file}")
-                                
-                                with open(newest_file, "rb") as f:
-                                    video_base64 = base64.b64encode(f.read()).decode()
-                                
-                                return {
-                                    "success": True,
-                                    "video_base64": video_base64,
-                                    "filename": os.path.basename(newest_file),
-                                    "resolution": settings.get('resolution', 'Unknown'),
-                                    "duration": elapsed,
-                                    "debug": debug_info
-                                }
+                            
+                            with open(newest_file, "rb") as f:
+                                video_base64 = base64.b64encode(f.read()).decode()
+                            
+                            return {
+                                "success": True,
+                                "video_base64": video_base64,
+                                "filename": os.path.basename(newest_file),
+                                "resolution": settings.get('resolution', 'Unknown'),
+                                "duration": elapsed,
+                                "debug": debug_info
+                            }
                         
                         # No video found despite completion
                         return {
