@@ -1,5 +1,5 @@
-# Use proven working ComfyUI base
-FROM nvidia/cuda:11.8-devel-ubuntu22.04
+# CUDA 12.1 as requested
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
 
 # Install system dependencies
 ENV DEBIAN_FRONTEND=noninteractive
@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     git \
     wget \
+    ffmpeg \
+    libglib2.0-0 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
