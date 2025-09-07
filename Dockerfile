@@ -56,22 +56,19 @@ RUN pip install --no-cache-dir --break-system-packages \
     pillow \
     opencv-python
 
-# Download models directly with proper error handling
+# Download models using curl (more reliable than wget for HuggingFace)
 RUN cd models/checkpoints && \
-    wget --no-check-certificate --timeout=30 --tries=3 \
-    -O wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
-    "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors?download=true" && \
-    echo "✅ Downloaded WAN model" && \
+    curl -L -o wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
+    "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" && \
+    echo "✅ Downloaded WAN model ($(du -h wan2.2-i2v-rapid-aio-v10-nsfw.safetensors | cut -f1))" && \
     cd ../vae && \
-    wget --no-check-certificate --timeout=30 --tries=3 \
-    -O wan2.2_vae.safetensors \
-    "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2_vae.safetensors?download=true" && \
-    echo "✅ Downloaded VAE model" && \
+    curl -L -o wan2.2_vae.safetensors \
+    "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2_vae.safetensors" && \
+    echo "✅ Downloaded VAE model ($(du -h wan2.2_vae.safetensors | cut -f1))" && \
     cd ../clip_vision && \
-    wget --no-check-certificate --timeout=30 --tries=3 \
-    -O clip_vision_vit_h.safetensors \
-    "https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/resolve/main/open_clip_pytorch_model.bin?download=true" && \
-    echo "✅ Downloaded CLIP model"
+    curl -L -o clip_vision_vit_h.safetensors \
+    "https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/resolve/main/open_clip_pytorch_model.bin" && \
+    echo "✅ Downloaded CLIP model ($(du -h clip_vision_vit_h.safetensors | cut -f1))"
 
 # Copy handler
 COPY src/handler.py /handler.py
