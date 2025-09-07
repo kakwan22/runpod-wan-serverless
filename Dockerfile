@@ -59,16 +59,19 @@ RUN pip install --no-cache-dir --break-system-packages \
 
 # Download models using curl (more reliable than wget for HuggingFace)
 RUN cd models/checkpoints && \
-    curl -L -o wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
+    echo "🔽 Downloading WAN model..." && \
+    curl -L --progress-bar -o wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
     "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" && \
     echo "✅ Downloaded WAN model ($(du -h wan2.2-i2v-rapid-aio-v10-nsfw.safetensors | cut -f1))" && \
     cd ../vae && \
-    curl -L -o wan2.2_vae.safetensors \
+    echo "🔽 Downloading VAE model..." && \
+    curl -L --progress-bar -o wan2.2_vae.safetensors \
     "https://huggingface.co/Kijai/WAN2.2/resolve/main/wan2.2_vae.safetensors" && \
     echo "✅ Downloaded VAE model ($(du -h wan2.2_vae.safetensors | cut -f1))" && \
     cd ../clip_vision && \
-    curl -L -o clip_vision_vit_h.safetensors \
-    "https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/resolve/main/open_clip_pytorch_model.bin" && \
+    echo "🔽 Downloading CLIP Vision model..." && \
+    curl -L --progress-bar -o clip_vision_vit_h.safetensors \
+    "https://huggingface.co/lllyasviel/misc/resolve/main/clip_vision_vit_h.safetensors" && \
     echo "✅ Downloaded CLIP model ($(du -h clip_vision_vit_h.safetensors | cut -f1))"
 
 # Copy handler

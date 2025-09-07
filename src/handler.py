@@ -11,75 +11,8 @@ import shutil
 import glob
 from typing import Optional, Dict, Any
 
-def check_model_hash():
-    """Check and print model file hashes for debugging"""
-    try:
-        import hashlib
-        
-        # Check main model
-        model_path = "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
-        # Note: Your local uses non-NSFW version but RunPod should use NSFW version
-        # We need to get the correct hash for the NSFW version
-        
-        if os.path.exists(model_path):
-            # Get full file hash
-            hash_md5 = hashlib.md5()
-            with open(model_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-            
-            actual_hash = hash_md5.hexdigest().upper()
-            file_size = os.path.getsize(model_path)
-            
-            print(f"🎬 WAN Model: wan2.2-i2v-rapid-aio-v10-nsfw.safetensors")
-            print(f"  📦 Size: {file_size / (1024**3):.2f} GB")
-            print(f"  🔍 Hash: {actual_hash}")
-        else:
-            print(f"❌ WAN model not found at {model_path}")
-            
-        # Check WAN VAE model (CRITICAL for matching local results)
-        vae_path = "/ComfyUI/models/vae/wan2.2_vae.safetensors"
-        if os.path.exists(vae_path):
-            hash_md5 = hashlib.md5()
-            with open(vae_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-            
-            vae_hash = hash_md5.hexdigest().upper()
-            vae_size = os.path.getsize(vae_path)
-            
-            print(f"🎨 WAN VAE: wan2.2_vae.safetensors")
-            print(f"  📦 Size: {vae_size / (1024**3):.2f} GB")
-            print(f"  🔍 Hash: {vae_hash}")
-        else:
-            print(f"❌ WAN VAE not found at {vae_path}")
-            
-        # Check CLIP vision model
-        clip_path = "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
-        expected_clip_hash = "EF7BC1CA20305F80D0E4E1E3B27D9568"  # Your local CLIP hash
-        
-        if os.path.exists(clip_path):
-            hash_md5 = hashlib.md5()
-            with open(clip_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-            
-            actual_clip_hash = hash_md5.hexdigest().upper()
-            clip_size = os.path.getsize(clip_path)
-            
-            print(f"👁️ CLIP Vision: clip_vision_vit_h.safetensors")
-            print(f"  📦 Size: {clip_size / (1024**3):.2f} GB")
-            print(f"  🔍 Hash: {actual_clip_hash}")
-        else:
-            print(f"❌ CLIP model not found at {clip_path}")
-            
-    except Exception as e:
-        print(f"⚠️ Could not check model hashes: {e}")
-
 def start_comfyui():
     """Start ComfyUI server if not already running"""
-    # Check model hash for debugging  
-    check_model_hash()
     
     # First check if ComfyUI is already running
     try:
@@ -263,7 +196,7 @@ def handler(job):
         # Collect debug info to return in response
         debug_info = {"handler_version": "2025-01-07", "job_id": job.get("id", "unknown")}
         
-        # Validate required models
+        # Validate required models (no volume, models downloaded in Docker build)
         required_models = {
             "wan_model": "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors",
             "wan_vae": "/ComfyUI/models/vae/wan2.2_vae.safetensors", 
@@ -273,10 +206,13 @@ def handler(job):
         missing_models = []
         for model_name, model_path in required_models.items():
             if not os.path.exists(model_path):
-                missing_models.append(model_name)
+                missing_models.append(f"{model_name} ({model_path})")
                 debug_info[f"{model_name}_status"] = "NOT FOUND"
+                print(f"❌ Missing model: {model_path}")
             else:
-                debug_info[f"{model_name}_status"] = "OK"
+                file_size = os.path.getsize(model_path)
+                debug_info[f"{model_name}_status"] = f"OK ({file_size / (1024**3):.2f} GB)"
+                print(f"✅ Found model: {model_path} ({file_size / (1024**3):.2f} GB)")
         
         if missing_models:
             return {
