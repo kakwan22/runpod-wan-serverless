@@ -216,7 +216,7 @@ def handler(job):
         # Validate required models (no volume, models downloaded in Docker build)
         required_models = {
             "wan_model": "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors",
-            "wan_vae": "/ComfyUI/models/vae/wan2.2_vae.safetensors", 
+            # VAE is built into the checkpoint, no separate file needed
             "clip_vision": "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
         }
         
