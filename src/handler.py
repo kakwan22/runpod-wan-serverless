@@ -9,6 +9,7 @@ import subprocess
 import hashlib
 import shutil
 import glob
+import random
 from typing import Optional, Dict, Any
 
 def start_comfyui():
@@ -90,8 +91,15 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
     # Parse resolution
     width, height = map(int, resolution.split('x'))
     
-    # Calculate frames from duration and FPS
-    frames = int(settings.get('duration', 5) * settings.get('fps', 24))
+    # Ensure seed is valid
+    seed = settings.get('seed', -1)
+    if seed < 0:
+        seed = random.randint(0, 1000000)
+    
+    # Calculate frames/length from duration and FPS
+    fps = settings.get('fps', 24)
+    duration = settings.get('duration', 5)
+    length = int(duration * fps)
     
     workflow = {
         "1": {
@@ -99,83 +107,99 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
                 "image": image_name,
                 "choose file to upload": "image"
             },
-            "class_type": "LoadImage",
-            "_meta": {"title": "Load Image"}
+            "class_type": "LoadImage"
         },
         "2": {
             "inputs": {
                 "ckpt_name": "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
             },
-            "class_type": "CheckpointLoaderSimple",
-            "_meta": {"title": "Load Checkpoint"}
+            "class_type": "CheckpointLoaderSimple"
         },
         "3": {
             "inputs": {
                 "clip_name": "clip_vision_vit_h.safetensors"
             },
-            "class_type": "CLIPVisionLoader",
-            "_meta": {"title": "Load CLIP Vision"}
+            "class_type": "CLIPVisionLoader"
         },
         "4": {
+            "inputs": {
+                "crop": "center",
+                "image": ["1", 0],
+                "clip_vision": ["3", 0]
+            },
+            "class_type": "CLIPVisionEncode"
+        },
+        "5": {
             "inputs": {
                 "text": settings.get('prompt', ''),
                 "clip": ["2", 1]
             },
-            "class_type": "CLIPTextEncode",
-            "_meta": {"title": "CLIP Text Encode (Prompt)"}
+            "class_type": "CLIPTextEncode"
         },
-        "5": {
+        "6": {
             "inputs": {
                 "text": settings.get('negativePrompt', ''),
                 "clip": ["2", 1]
             },
-            "class_type": "CLIPTextEncode",
-            "_meta": {"title": "CLIP Text Encode (Negative)"}
-        },
-        "6": {
-            "inputs": {
-                "width": width,
-                "height": height,
-                "batch_size": 1
-            },
-            "class_type": "EmptyLatentImage",
-            "_meta": {"title": "Empty Latent Image"}
+            "class_type": "CLIPTextEncode"
         },
         "7": {
             "inputs": {
-                "seed": settings.get('seed', -1),
+                "shift": settings.get('modelShift', 8.0),
+                "model": ["2", 0]
+            },
+            "class_type": "ModelSamplingSD3"
+        },
+        "8": {
+            "inputs": {
+                "positive": ["5", 0],
+                "negative": ["6", 0],
+                "vae": ["2", 2],
+                "clip_vision_output": ["4", 0],
+                "start_image": ["1", 0],
+                "width": width,
+                "height": height,
+                "length": length,
+                "batch_size": 1
+            },
+            "class_type": "WanImageToVideo"
+        },
+        "9": {
+            "inputs": {
+                "seed": seed,
                 "steps": settings.get('steps', 4),
                 "cfg": settings.get('cfg', 1.0),
                 "sampler_name": settings.get('samplerMethod', 'sa_solver'),
                 "scheduler": settings.get('scheduler', 'beta'),
                 "denoise": settings.get('denoise', 1.0),
-                "model": ["2", 0],
-                "positive": ["4", 0],
-                "negative": ["5", 0],
-                "latent_image": ["6", 0]
+                "model": ["7", 0],
+                "positive": ["8", 0],
+                "negative": ["8", 1],
+                "latent_image": ["8", 2]
             },
-            "class_type": "KSampler",
-            "_meta": {"title": "KSampler"}
+            "class_type": "KSampler"
         },
-        "8": {
+        "10": {
             "inputs": {
-                "samples": ["7", 0],
+                "samples": ["9", 0],
                 "vae": ["2", 2]
             },
-            "class_type": "VAEDecode",
-            "_meta": {"title": "VAE Decode"}
+            "class_type": "VAEDecode"
         },
-        "9": {
+        "11": {
             "inputs": {
-                "images": ["8", 0],
-                "fps": settings.get('fps', 24),
-                "lossless": False,
-                "quality": 85,
-                "method": "h264",
-                "crf": settings.get('crf', 19)
+                "images": ["10", 0],
+                "frame_rate": settings.get('fps', 24),
+                "loop_count": 0,
+                "filename_prefix": "runpod_video",
+                "format": "video/h264-mp4",
+                "pix_fmt": "yuv420p",
+                "crf": settings.get('crf', 19),
+                "save_metadata": True,
+                "pingpong": False,
+                "save_output": True
             },
-            "class_type": "VHS_VideoCombine",
-            "_meta": {"title": "Video Combine"}
+            "class_type": "VHS_VideoCombine"
         }
     }
     
