@@ -1,5 +1,5 @@
-# CUDA 12.1 as requested - RunPod 2025
-FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
+# CUDA 12.8 to match local setup - Ubuntu 24.04 LTS
+FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04
 
 # Install system dependencies with retry logic
 ENV DEBIAN_FRONTEND=noninteractive
