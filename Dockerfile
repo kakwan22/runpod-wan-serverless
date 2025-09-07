@@ -1,37 +1,56 @@
-# Bulletproof minimal Dockerfile
+# ComfyUI Docker for RunPod - 2025
 FROM python:3.11
 
-# Install git only (minimum needed)
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    curl \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /ComfyUI
 
-# Clone ComfyUI and install requirements
+# Clone ComfyUI at specific version
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git . && \
-    git checkout f6b93d41 && \
-    pip install -r requirements.txt
+    git checkout f6b93d41
 
-# Create directories  
+# Install ComfyUI requirements
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create model directories
 RUN mkdir -p models/checkpoints models/clip_vision custom_nodes input output
 
-# Install custom nodes
+# Install WanVideoWrapper - using kijai's repo (more stable)
 RUN cd custom_nodes && \
-    git clone https://github.com/wan-h/ComfyUI-WanVideoWrapper.git && \
+    git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
     cd ComfyUI-WanVideoWrapper && \
-    git checkout 0ad24cd && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
+# Install VideoHelperSuite
 RUN cd custom_nodes && \
     git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
     cd ComfyUI-VideoHelperSuite && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
-# Install handler dependencies
-RUN pip install runpod requests pillow opencv-python
+# Install additional dependencies for RunPod
+RUN pip install --no-cache-dir \
+    runpod \
+    requests \
+    pillow \
+    opencv-python
 
-# Download models
-RUN wget -O models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/v10/wan2.2-i2v-rapid-aio-v10.safetensors"
-RUN wget -O models/clip_vision/clip_vision_vit_h.safetensors "https://huggingface.co/lllyasviel/misc/resolve/main/clip_vision_vit_h.safetensors"
+# Download required models
+RUN wget -O models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors \
+    "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne/resolve/main/v10/wan2.2-i2v-rapid-aio-v10.safetensors"
+
+RUN wget -O models/clip_vision/clip_vision_vit_h.safetensors \
+    "https://huggingface.co/lllyasviel/misc/resolve/main/clip_vision_vit_h.safetensors"
 
 # Copy handler
 COPY src/handler.py /handler.py
