@@ -194,11 +194,28 @@ def handler(job):
         queue_result = queue_response.json()
         prompt_id = queue_result.get("prompt_id")
         
-        # Poll for completion (10 minute timeout)
-        timeout = 600
+        # Poll for completion (30 minute timeout for very long videos)
+        timeout = 1800
         start_time = time.time()
         
         while time.time() - start_time < timeout:
+            elapsed = int(time.time() - start_time)
+            
+            # Check current queue status
+            try:
+                queue_response = requests.get("http://localhost:8188/queue", timeout=5)
+                if queue_response.ok:
+                    queue_data = queue_response.json()
+                    running = queue_data.get("queue_running", [])
+                    pending = queue_data.get("queue_pending", [])
+                    print(f"DEBUG: [{elapsed}s] Queue status - Running: {len(running)}, Pending: {len(pending)}")
+                    
+                    # If no jobs running and none pending, something is wrong
+                    if len(running) == 0 and len(pending) == 0:
+                        print("WARNING: No jobs in queue - might be stuck or completed")
+            except Exception as e:
+                print(f"DEBUG: Could not check queue: {e}")
+            
             history_response = requests.get(f"http://localhost:8188/history/{prompt_id}")
             if history_response.ok:
                 history = history_response.json()
