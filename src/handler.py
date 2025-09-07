@@ -529,6 +529,17 @@ def handler(job):
     
     except Exception as e:
         return {"error": f"Handler error: {str(e)}"}
+    finally:
+        # Always cleanup after job completion or failure
+        try:
+            print("🧹 Performing cleanup after job...")
+            # Clear ComfyUI queue
+            requests.post("http://localhost:8188/queue", json={"clear": True}, timeout=5)
+            # Free GPU memory
+            requests.post("http://localhost:8188/free", json={"unload_models": True, "free_memory": True}, timeout=5)
+            print("✅ Cleanup completed")
+        except:
+            pass  # Cleanup failures are not critical
 
 # Initialize RunPod serverless
 runpod.serverless.start({"handler": handler})
