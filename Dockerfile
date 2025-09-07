@@ -1,4 +1,4 @@
-# CUDA 12.1 as requested
+# CUDA 12.1 as requested - RunPod 2025
 FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
 
 # Install system dependencies - only essential packages
