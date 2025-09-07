@@ -36,11 +36,18 @@ RUN cd custom_nodes && \
     cd ComfyUI-WanVideoWrapper && \
     pip install --no-cache-dir --break-system-packages -r requirements.txt
 
-# Install VideoHelperSuite
+# Install VideoHelperSuite version 1.7.4 (to match local)
 RUN cd custom_nodes && \
     git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
     cd ComfyUI-VideoHelperSuite && \
+    git checkout v1.7.4 || echo "v1.7.4 tag not found, using latest" && \
     pip install --no-cache-dir --break-system-packages -r requirements.txt
+    
+# Verify VideoHelperSuite installation
+RUN cd custom_nodes/ComfyUI-VideoHelperSuite && \
+    echo "VideoHelperSuite version check:" && \
+    python -c "print('VideoHelperSuite installed successfully')" && \
+    ls -la *.py | head -5
 
 # Install additional dependencies for RunPod
 RUN pip install --no-cache-dir --break-system-packages \
