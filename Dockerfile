@@ -15,9 +15,9 @@ RUN apt-get clean && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set python3 as default and upgrade pip
+# Set python3 as default and upgrade pip (with --break-system-packages for Ubuntu 24.04)
 RUN ln -s /usr/bin/python3 /usr/bin/python && \
-    python3 -m pip install --upgrade pip setuptools wheel
+    python3 -m pip install --break-system-packages --upgrade pip setuptools wheel
 
 WORKDIR /ComfyUI
 
@@ -26,7 +26,7 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git . && \
     git checkout f6b93d41
 
 # Install ComfyUI requirements
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Create local model directories and setup volume links
 RUN mkdir -p models/checkpoints models/clip_vision models/vae custom_nodes input output
@@ -35,16 +35,16 @@ RUN mkdir -p models/checkpoints models/clip_vision models/vae custom_nodes input
 RUN cd custom_nodes && \
     git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
     cd ComfyUI-WanVideoWrapper && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Install VideoHelperSuite
 RUN cd custom_nodes && \
     git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
     cd ComfyUI-VideoHelperSuite && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Install additional dependencies for RunPod
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --break-system-packages \
     runpod \
     requests \
     pillow \
