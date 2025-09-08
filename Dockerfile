@@ -28,9 +28,9 @@ WORKDIR /
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git
 WORKDIR /ComfyUI
 
-# Install PyTorch with CUDA 12.8 support (compatible with CUDA 12.8)
+# Install PyTorch with CUDA 12.8 support - robust approach
 RUN echo "🔧 Installing PyTorch with CUDA support..." && \
-    pip3 install --no-cache-dir --break-system-packages \
+    pip3 install --no-cache-dir --break-system-packages --upgrade --force-reinstall \
     torch==2.7.1 \
     torchvision==0.22.1 \
     torchaudio==2.7.1 \
