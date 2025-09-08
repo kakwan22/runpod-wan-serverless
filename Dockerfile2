@@ -1,4 +1,4 @@
-# EXTENDS BASE IMAGE WITH MODELS
+# EXTENDS BASE IMAGE WITH MODELS 
 FROM kakwan22/wanrunpod:latest
 
 # Download WAN model (check first - 24GB)
