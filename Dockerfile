@@ -36,20 +36,12 @@ RUN if [ ! -d "/ComfyUI" ]; then \
     fi
 WORKDIR /ComfyUI
 
-# Install PyTorch (check first, CUDA 12.8 only with smart methods)
+# Install PyTorch (check first, CUDA 12.8 only)
 RUN echo "🔍 Checking PyTorch installation..." && \
     if ! python3 -c "import torch; print(f'Found PyTorch {torch.__version__}')" 2>/dev/null; then \
         echo "🔧 Installing PyTorch with CUDA 12.8 support..." && \
-        (pip3 install --no-cache-dir --break-system-packages --upgrade --force-reinstall \
-         torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
-         --index-url https://download.pytorch.org/whl/cu128 || \
-         echo "⚠️ Specific versions failed, trying latest CUDA 12.8 build..." && \
-         pip3 install --no-cache-dir --break-system-packages \
-         torch torchvision torchaudio \
-         --index-url https://download.pytorch.org/whl/cu128 || \
-         echo "⚠️ Index URL failed, trying direct install method..." && \
-         pip3 install --no-cache-dir --break-system-packages --upgrade \
-         torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu128) && \
+        pip3 install --no-cache-dir torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
+        --index-url https://download.pytorch.org/whl/cu128 && \
         echo "✅ PyTorch installed successfully!"; \
     else \
         echo "✅ PyTorch already installed!"; \
@@ -58,11 +50,8 @@ RUN echo "🔍 Checking PyTorch installation..." && \
 # Install ComfyUI requirements (check first)
 RUN if [ -f "requirements.txt" ]; then \
         echo "📦 Installing ComfyUI requirements..." && \
-        (pip3 install --no-cache-dir --break-system-packages -r requirements.txt || \
-         echo "⚠️ Requirements install failed, trying without break-system-packages..." && \
-         pip3 install --no-cache-dir -r requirements.txt || \
-         echo "⚠️ Continuing despite requirements failure...") && \
-        echo "✅ ComfyUI requirements processed!"; \
+        pip3 install --no-cache-dir -r requirements.txt && \
+        echo "✅ ComfyUI requirements installed!"; \
     else \
         echo "⚠️ No requirements.txt found, skipping..."; \
     fi
@@ -85,9 +74,7 @@ RUN cd custom_nodes && \
          echo "⚠️ Git clone failed for WanVideoWrapper") && \
         if [ -d "ComfyUI-WanVideoWrapper" ]; then \
             cd ComfyUI-WanVideoWrapper && \
-            (pip3 install --no-cache-dir --break-system-packages -r requirements.txt || \
-             pip3 install --no-cache-dir -r requirements.txt || \
-             echo "⚠️ WanVideoWrapper requirements failed") && \
+            pip3 install --no-cache-dir -r requirements.txt && \
             cd ..; \
         fi; \
     else \
@@ -100,9 +87,7 @@ RUN cd custom_nodes && \
          echo "⚠️ Git clone failed for VideoHelperSuite") && \
         if [ -d "ComfyUI-VideoHelperSuite" ]; then \
             cd ComfyUI-VideoHelperSuite && \
-            (pip3 install --no-cache-dir --break-system-packages -r requirements.txt || \
-             pip3 install --no-cache-dir -r requirements.txt || \
-             echo "⚠️ VideoHelperSuite requirements failed") && \
+            pip3 install --no-cache-dir -r requirements.txt && \
             cd ..; \
         fi; \
     else \
@@ -120,9 +105,7 @@ RUN echo "🔍 Checking additional dependencies..." && \
     done && \
     if [ -n "$missing_deps" ]; then \
         echo "📦 Installing missing dependencies:$missing_deps" && \
-        (pip3 install --no-cache-dir --break-system-packages $missing_deps || \
-         pip3 install --no-cache-dir $missing_deps || \
-         echo "⚠️ Some dependencies failed to install"); \
+        pip3 install --no-cache-dir $missing_deps; \
     else \
         echo "✅ All dependencies already installed!"; \
     fi
@@ -130,9 +113,7 @@ RUN echo "🔍 Checking additional dependencies..." && \
 # Install Hugging Face (check first)
 RUN if ! python3 -c "import huggingface_hub" 2>/dev/null; then \
         echo "📦 Installing Hugging Face with fast transfer..." && \
-        (pip3 install --no-cache-dir --break-system-packages "huggingface_hub[hf_transfer]" || \
-         pip3 install --no-cache-dir "huggingface_hub[hf_transfer]" || \
-         pip3 install --no-cache-dir huggingface_hub); \
+        pip3 install --no-cache-dir "huggingface_hub[hf_transfer]"; \
     else \
         echo "✅ Hugging Face already installed!"; \
     fi
