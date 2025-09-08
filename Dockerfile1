@@ -52,5 +52,11 @@ ENV HF_TOKEN=$HF_TOKEN
 # Copy handler
 COPY src/handler.py /handler.py
 
+# Cleanup to reduce size
+RUN rm -rf /root/.cache/pip/* && \
+    find /usr -name "*.pyc" -delete && \
+    find /usr -name "__pycache__" -delete && \
+    rm -rf /tmp/*
+
 # Start handler
 CMD ["python3", "/handler.py"]
