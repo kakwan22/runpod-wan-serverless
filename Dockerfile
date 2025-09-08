@@ -1,5 +1,5 @@
 # SMART DOCKERFILE - Check first, install only if needed, fallbacks everywhere!
-FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.0-cudnn-runtime-debian12
 
 # Install system dependencies with smart checking
 ENV DEBIAN_FRONTEND=noninteractive
