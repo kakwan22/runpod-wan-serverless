@@ -5,6 +5,9 @@ FROM kakwan22/wanrunpod:latest
 ARG HF_TOKEN
 ENV HF_TOKEN=$HF_TOKEN
 
+# Force cache bust for model downloads - v2
+RUN echo "Model download cache bust v2"
+
 # Download WAN model (check first - 24GB)
 RUN cd models/checkpoints && \
     if [ ! -f "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" ] || [ $(stat -c%s "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" 2>/dev/null || echo 0) -lt 20000000000 ]; then \
