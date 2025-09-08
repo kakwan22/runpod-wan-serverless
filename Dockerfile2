@@ -8,11 +8,12 @@ WORKDIR /ComfyUI
 ARG HF_TOKEN
 ENV HF_TOKEN=$HF_TOKEN
 
-# Force cache bust for model downloads - v4
-RUN echo "Model download cache bust v4"
+# Force cache bust for model downloads - v5
+RUN echo "Model download cache bust v5"
 
-# Clean up any existing models first
-RUN rm -rf models/checkpoints/* models/clip_vision/*
+# Ensure directories exist and clean up any existing models
+RUN mkdir -p models/checkpoints models/clip_vision && \
+    rm -rf models/checkpoints/* models/clip_vision/* || true
 
 # Download WAN model (check first - 24GB)
 RUN cd models/checkpoints && \
