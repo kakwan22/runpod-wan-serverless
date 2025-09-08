@@ -1,4 +1,4 @@
-# MINIMAL RUNPOD DOCKERFILE - PyTorch 2.7.1 + CUDA 12.8
+# MINIMAL RUNPOD DOCKERFILE - PyTorch 2.7.1 + CUDA 12.8 
 FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
 
 # Install system packages
