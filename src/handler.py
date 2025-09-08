@@ -14,93 +14,84 @@ from typing import Optional, Dict, Any
 
 def start_comfyui():
     """Start ComfyUI server if not already running"""
-    
-    # First check if ComfyUI is already running
     try:
-        response = requests.get("http://localhost:8188/system_stats", timeout=5)
-        if response.ok:
+        # First check if ComfyUI is already running
+        response = requests.get("http://localhost:8188/system_stats", timeout=2)
+        if response.status_code == 200:
             print("ComfyUI server is already running!")
             return True
-    except:
+    except requests.exceptions.RequestException:
         pass
-    
+
     print("Starting ComfyUI server...")
     
-    # Start server in background
-    process = subprocess.Popen(
-        ["python", "main.py", "--listen", "0.0.0.0", "--port", "8188"],
+    # Start ComfyUI in background
+    process = subprocess.Popen([
+        "python", "main.py", "--listen", "--force-fp16", "--disable-xformers", "--enable-cors-header"
+    ], 
         cwd="/ComfyUI",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
     
     # Wait for ComfyUI to be ready
-    for i in range(30):
+    for i in range(30):  # Wait up to 30 seconds
         try:
-            response = requests.get("http://localhost:8188/system_stats", timeout=5)
-            if response.ok:
+            response = requests.get("http://localhost:8188/system_stats", timeout=2)
+            if response.status_code == 200:
                 print("ComfyUI server is ready!")
                 return True
-        except:
+        except requests.exceptions.RequestException:
             pass
-        time.sleep(2)
+        
         print(f"Waiting for ComfyUI... ({i+1}/30)")
+        time.sleep(1)
     
     return False
 
-def calculate_optimal_resolution(image_width: int, image_height: int) -> str:
-    """Calculate optimal resolution for WAN 2.2 model based on input image"""
-    # WAN 2.2 supported resolutions (width x height)
-    supported_resolutions = [
-        (512, 512), (768, 512), (512, 768),
-        (1024, 576), (576, 1024), (768, 768),
-        (1024, 768), (768, 1024)
-    ]
+def calculate_optimal_resolution(original_width: int, original_height: int, target_total_pixels: int = 512*512) -> tuple:
+    """Calculate optimal resolution maintaining aspect ratio"""
+    aspect_ratio = original_width / original_height
     
-    # Calculate aspect ratio of input
-    input_aspect = image_width / image_height
+    if aspect_ratio > 1:  # Landscape
+        height = int((target_total_pixels / aspect_ratio) ** 0.5)
+        width = int(height * aspect_ratio)
+    else:  # Portrait or square
+        width = int((target_total_pixels * aspect_ratio) ** 0.5)
+        height = int(width / aspect_ratio)
     
-    # Find best matching resolution
-    best_match = None
-    best_score = float('inf')
+    # Round to nearest multiple of 8 for better compatibility
+    width = ((width + 7) // 8) * 8
+    height = ((height + 7) // 8) * 8
     
-    for width, height in supported_resolutions:
-        resolution_aspect = width / height
-        
-        # Score based on aspect ratio difference and total pixel count
-        aspect_diff = abs(input_aspect - resolution_aspect)
-        pixel_diff = abs((width * height) - (image_width * image_height)) / (image_width * image_height)
-        
-        score = aspect_diff + pixel_diff * 0.1  # Weight pixel count less than aspect ratio
-        
-        if score < best_score:
-            best_score = score
-            best_match = (width, height)
-    
-    return f"{best_match[0]}x{best_match[1]}" if best_match else "512x512"
+    return width, height
 
-def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[str, Any]:
+def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict:
     """Create ComfyUI workflow for WAN 2.2 video generation"""
     
-    # Calculate resolution if auto
-    resolution = settings.get('resolution', 'auto')
-    if resolution == 'auto':
-        # For now, use a default. In production, we'd analyze the actual image
-        resolution = "768x512"  # Will be calculated from actual image dimensions
+    # Handle resolution settings
+    if settings.get('resolution') in ['720p', '1080p']:
+        if settings['resolution'] == '720p':
+            target_width, target_height = 640, 640  # Square 720p equivalent
+        else:  # 1080p
+            target_width, target_height = 1024, 1024  # Square 1080p equivalent
+    elif settings.get('resolution') == 'auto':
+        target_width, target_height = 768, 512  # Default fallback
+    else:
+        # Parse custom resolution or use default
+        resolution = settings.get('resolution', '768x512')
+        if 'x' in resolution:
+            width_str, height_str = resolution.split('x')
+            target_width = int(width_str)
+            target_height = int(height_str)
+        else:
+            target_width, target_height = 768, 512
     
-    # Parse resolution
-    width, height = map(int, resolution.split('x'))
+    # Video generation parameters
+    length = (settings.get('duration', 5) * settings.get('fps', 24))  # frames
+    seed = settings.get('seed', random.randint(0, 1000000))
     
-    # Ensure seed is valid
-    seed = settings.get('seed', -1)
-    if seed < 0:
-        seed = random.randint(0, 1000000)
-    
-    # Calculate frames/length from duration and FPS
-    fps = settings.get('fps', 24)
-    duration = settings.get('duration', 5)
-    length = int(duration * fps)
-    
+    # Workflow structure matching the working local version
     workflow = {
         "1": {
             "inputs": {
@@ -157,8 +148,8 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
                 "vae": ["2", 2],
                 "clip_vision_output": ["4", 0],
                 "start_image": ["1", 0],
-                "width": width,
-                "height": height,
+                "width": target_width,
+                "height": target_height,
                 "length": length,
                 "batch_size": 1
             },
@@ -208,14 +199,10 @@ def create_comfyui_workflow(image_name: str, settings: Dict[str, Any]) -> Dict[s
 def handler(job):
     """RunPod serverless handler for Video Generator App"""
     try:
-        print("🚀 YAY! Video Generator Handler starting! Version: 2025-01-07")
-        print("🎉 HELLO! We're processing a new video generation job!")
+        print("🚀 Handler starting...")
         
         # Collect debug info to return in response
         debug_info = {"handler_version": "2025-01-07", "job_id": job.get("id", "unknown")}
-        
-        print(f"📋 YAY! Job details received: ID = {job.get('id', 'unknown')}")
-        print(f"🔍 NICE! Job input structure: {list(job.get('input', {}).keys())}")
         
         # Validate required models (no volume, models downloaded in Docker build)
         required_models = {
@@ -224,34 +211,27 @@ def handler(job):
             "clip_vision": "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
         }
         
-        print("🔍 YAY! Let's check if our AI models are ready...")
+        # Check models
         missing_models = []
         for model_name, model_path in required_models.items():
             if not os.path.exists(model_path):
                 missing_models.append(f"{model_name} ({model_path})")
                 debug_info[f"{model_name}_status"] = "NOT FOUND"
-                print(f"❌ OH NO! Missing model: {model_path}")
+                print(f"❌ Missing model: {model_path}")
             else:
                 file_size = os.path.getsize(model_path)
                 debug_info[f"{model_name}_status"] = f"OK ({file_size / (1024**3):.2f} GB)"
-                print(f"✅ AWESOME! Found {model_name}: {model_path} ({file_size / (1024**3):.2f} GB)")
-                print(f"🎉 GREAT! The {model_name} is ready and loaded!")
+                print(f"✅ Found {model_name} ({file_size / (1024**3):.2f} GB)")
         
         if missing_models:
-            print("💔 Oh no! Some models are missing. Can't generate videos without them!")
             return {
                 "error": f"Missing required models: {', '.join(missing_models)}",
                 "debug": debug_info
             }
         
-        print("🎬 FANTASTIC! All AI models are loaded and ready to generate amazing videos!")
-        
         # Start ComfyUI if not running
-        print("🚀 EXCITING! Starting ComfyUI server...")
         if not start_comfyui():
-            print("😭 OH NO! ComfyUI server failed to start!")
             return {"error": "Failed to start ComfyUI server", "debug": debug_info}
-        print("🎉 WOOHOO! ComfyUI server is running and ready!")
         
         # Extract job input from our Video Generator App
         job_input = job.get("input", {})
@@ -260,100 +240,81 @@ def handler(job):
         # Handle both old format (direct fields) and new format (images array)
         images_array = job_input.get("images", [])
         if images_array and len(images_array) > 0:
-            # New format: images array
-            image_data = images_array[0].get("image")
-            image_name = images_array[0].get("name", f"input_{int(time.time())}.png")
-            settings = job_input.get("settings", {})
             print(f"🔍 Using new format: images array with {len(images_array)} images")
+            first_image = images_array[0]
+            image_data = first_image.get("image_data", "")
+            image_name = first_image.get("image_name", "input_image.png")
+            print(f"📷 Handler debug: image_data length: {len(image_data)}, image_name: {image_name}")
         else:
-            # Old format: direct fields (fallback)
-            image_data = job_input.get("image")
-            image_name = job_input.get("imageName", f"input_{int(time.time())}.png") 
-            settings = job_input.get("settings", {})
-            print(f"🔍 Using old format: direct fields")
+            # Fallback for old format
+            print("🔍 Using old format: direct image fields")
+            image_data = job_input.get("image_data", job_input.get("image", ""))
+            image_name = job_input.get("image_name", "input_image.png")
         
-        print(f"🔍 Handler debug: image_data length: {len(image_data) if image_data else 0}, image_name: {image_name}")
+        # Get workflow and settings
+        workflow = job_input.get("workflow")
+        settings = job_input.get("settings", {})
         
         if not image_data:
             return {"error": "No image data provided", "debug": debug_info}
         
-        # Clean input directory for fresh processing (prevents using old images)
+        # Save image to ComfyUI input directory
         input_dir = "/ComfyUI/input"
-        try:
-            if os.path.exists(input_dir):
-                shutil.rmtree(input_dir)
-                print("🧹 Cleared ComfyUI input directory")
+        if os.path.exists(input_dir):
+            shutil.rmtree(input_dir)
+            os.makedirs(input_dir)
+            print("🧹 Cleared ComfyUI input directory")
+        else:
             os.makedirs(input_dir, exist_ok=True)
-        except Exception as e:
-            print(f"⚠️ Could not clear input directory: {e}")
-            # Try to at least create the directory
-            os.makedirs(input_dir, exist_ok=True)
-        
-        # Process image data
-        try:
-            # Strip data URI prefix if present
-            if image_data.startswith("data:image"):
-                image_data = image_data.split(",")[1]
             
-            # Decode and save image
+        # Decode and save image
+        try:
+            if image_data.startswith('data:image'):
+                image_data = image_data.split(',')[1]
+            
             image_bytes = base64.b64decode(image_data)
-            image_path = f"{input_dir}/{image_name}"
+            image_path = os.path.join(input_dir, image_name)
             
-            with open(image_path, "wb") as f:
+            with open(image_path, 'wb') as f:
                 f.write(image_bytes)
-                
+            
             print(f"📷 Saved image: {image_name} ({len(image_bytes)} bytes)")
             
         except Exception as e:
-            return {"error": f"Failed to process image: {str(e)}", "debug": debug_info}
+            return {"error": f"Failed to save image: {str(e)}", "debug": debug_info}
         
-        # Use the workflow provided by the client, or create one as fallback
-        workflow = job_input.get("workflow")
-        if not workflow:
-            print("⚠️ No workflow provided by client, creating default workflow")
-            # Auto-calculate resolution if needed
+        # Use provided workflow or create fallback
+        if workflow:
+            print(f"✅ Using client-provided workflow with {len(workflow)} nodes")
+        else:
+            # Auto-calculate resolution for fallback
             if settings.get('resolution') == 'auto':
                 try:
                     from PIL import Image
-                    with Image.open(image_path) as img:
-                        calculated_resolution = calculate_optimal_resolution(img.width, img.height)
-                        settings['resolution'] = calculated_resolution
-                        debug_info['calculated_resolution'] = calculated_resolution
-                        print(f"🎯 Auto-calculated resolution: {calculated_resolution} for {img.width}x{img.height} input")
+                    import io
+                    img = Image.open(io.BytesIO(image_bytes))
+                    calculated_width, calculated_height = calculate_optimal_resolution(img.width, img.height)
+                    calculated_resolution = f"{calculated_width}x{calculated_height}"
+                    settings['resolution'] = calculated_resolution
+                    debug_info['calculated_resolution'] = calculated_resolution
+                    print(f"🎯 Auto-calculated resolution: {calculated_resolution} for {img.width}x{img.height} input")
                 except Exception as e:
                     print(f"⚠️ Failed to auto-calculate resolution: {e}")
                     settings['resolution'] = "768x512"  # Fallback
             
             # Create workflow as fallback
             workflow = create_comfyui_workflow(image_name, settings)
-        else:
-            print(f"✅ Using client-provided workflow with {len(workflow)} nodes")
         
         client_id = str(uuid.uuid4())
         
-        # Add VHS detection and debugging
-        print("🔍 COOL! Let's check what nodes we have in our workflow...")
-        for node_id, node_data in workflow.items():
-            class_type = node_data.get("class_type", "Unknown")
-            print(f"  📦 Node {node_id}: {class_type}")
-            if class_type == "VHS_VideoCombine":
-                print(f"  🎥 FOUND VHS_VideoCombine! Parameters: {list(node_data.get('inputs', {}).keys())}")
-                vhs_inputs = node_data.get('inputs', {})
-                print(f"    📹 filename_prefix: {vhs_inputs.get('filename_prefix', 'not set')}")
-                print(f"    🎞️ format: {vhs_inputs.get('format', 'not set')}")
-                print(f"    💾 save_output: {vhs_inputs.get('save_output', 'not set')}")
-        
         # Queue workflow to ComfyUI
-        print("🎬 AWESOME! Queuing video generation workflow to ComfyUI...")
+        print("📤 Queuing workflow...")
         queue_response = requests.post("http://localhost:8188/prompt", json={
             "prompt": workflow,
             "client_id": client_id
         })
         
-        print(f"🔍 Queue response: {queue_response.status_code} - {queue_response.text[:200]}")
-        
         if not queue_response.ok:
-            print(f"😭 QUEUE FAILED! Full error: {queue_response.text}")
             return {
                 "error": f"Failed to queue workflow: {queue_response.text}",
                 "debug": debug_info
@@ -362,10 +323,9 @@ def handler(job):
         # Get prompt ID and wait for completion
         queue_result = queue_response.json()
         prompt_id = queue_result.get("prompt_id")
-        print(f"📋 SUCCESS! Queued with prompt_id: {prompt_id}")
+        print(f"✅ Queued with prompt_id: {prompt_id}")
         
         if not prompt_id:
-            print(f"😭 NO PROMPT ID! Full response: {queue_result}")
             return {"error": "No prompt_id returned", "debug": debug_info}
         
         # Poll for completion with intelligent timeout and error handling
@@ -377,20 +337,6 @@ def handler(job):
         while time.time() - start_time < max_wait_time:
             elapsed = int(time.time() - start_time)
             
-            # Check if ComfyUI is still responsive
-            try:
-                health_check = requests.get("http://localhost:8188/system_stats", timeout=10)
-                if not health_check.ok:
-                    return {
-                        "error": "ComfyUI server became unresponsive",
-                        "debug": debug_info
-                    }
-            except requests.exceptions.RequestException as e:
-                return {
-                    "error": f"ComfyUI server connection lost: {str(e)}",
-                    "debug": debug_info
-                }
-            
             # Check job status in history
             try:
                 history_response = requests.get(f"http://localhost:8188/history/{prompt_id}", timeout=10)
@@ -399,154 +345,61 @@ def handler(job):
                     if prompt_id in history:
                         # Job completed - process results
                         result = history[prompt_id]
-                        # EXPOSE ALL COMFYUI LOGS AND ERRORS
-                        print(f"🔍 FULL WORKFLOW RESULT: {json.dumps(result, indent=2, default=str)}")
-                        
-                        # Check for errors in the workflow execution
+                        # Check for errors
                         status = result.get("status", {})
-                        print(f"🔍 WORKFLOW STATUS: {status}")
-                        
-                        # Check for ANY error field anywhere in the result
-                        def find_errors(obj, path=""):
-                            errors = []
-                            if isinstance(obj, dict):
-                                for key, value in obj.items():
-                                    current_path = f"{path}.{key}" if path else key
-                                    if "error" in key.lower():
-                                        errors.append(f"{current_path}: {value}")
-                                    errors.extend(find_errors(value, current_path))
-                            elif isinstance(obj, list):
-                                for i, item in enumerate(obj):
-                                    errors.extend(find_errors(item, f"{path}[{i}]"))
-                            return errors
-                        
-                        all_errors = find_errors(result)
-                        if all_errors:
-                            print(f"😭 FOUND ERRORS IN RESULT: {all_errors}")
-                            return {
-                                "error": f"Workflow errors: {'; '.join(all_errors)}",
-                                "debug": debug_info
-                            }
-                        
-                        if "error" in status:
-                            print(f"😭 WORKFLOW ERROR FOUND: {status['error']}")
-                            return {
-                                "error": f"Workflow failed: {status['error']}",
-                                "debug": debug_info
-                            }
+                        if status.get("status_str") == "error":
+                            error_msg = "Workflow failed"
+                            if "messages" in status:
+                                for msg in status["messages"]:
+                                    if msg[0] == "execution_error":
+                                        error_msg = f"Node {msg[1]['node_id']} ({msg[1]['node_type']}): {msg[1]['exception_message']}"
+                                        break
+                            print(f"❌ {error_msg}")
+                            return {"error": error_msg, "debug": debug_info}
                         
                         outputs = result.get("outputs", {})
-                        print(f"✅ HOORAY! Job completed successfully! 🎉")
-                        print(f"📊 NICE! Found outputs from {len(outputs)} nodes: {list(outputs.keys())}")
+                        print(f"✅ Job completed - checking for video...")
                         
-                        # Simple output analysis 
-                        if outputs:
-                            print(f"📦 Node outputs: {list(outputs.keys())}")
-                        else:
-                            print("🤔 CRITICAL: No outputs from ANY nodes - workflow failed silently!")
-                        
-                        # SIMPLIFIED VIDEO DETECTION: Just search for video files directly
-                        # VHS_VideoCombine saves files but may not return them in outputs
-                        print("🔍 EXCITING! Let's hunt for our generated video files...")
-                        
-                        # First, try to find video files by our prefix
-                        video_found = False
-                        video_path = None
-                        
-                        # Check for our prefixed files first
-                        print("🎯 SEARCHING for files with 'runpod_video' prefix...")
-                        prefix_files = glob.glob("/ComfyUI/output/runpod_video*")
-                        if prefix_files:
-                            video_path = max(prefix_files, key=os.path.getmtime)  # Get most recent
-                            print(f"🎉 BINGO! Found our video with prefix: {video_path}")
-                            print(f"📏 File size: {os.path.getsize(video_path) / 1024 / 1024:.2f} MB")
-                            video_found = True
-                        else:
-                            print("🤔 Hmm, no files with 'runpod_video' prefix found...")
-                        
-                        # If no prefixed file, search for any video files
-                        if not video_found:
-                            print("🔍 Searching for any video files...")
-                            video_extensions = ['*.mp4', '*.avi', '*.mov', '*.mkv', '*.webm']
-                            all_found_files = []
+                        # Get the newest .mp4 file  
+                        try:
+                            mp4_files = glob.glob("/ComfyUI/output/*.mp4")
                             
-                            for ext in video_extensions:
-                                found_files = glob.glob(f"/ComfyUI/output/{ext}")
-                                if found_files:
-                                    all_found_files.extend(found_files)
-                                    print(f"  Found {len(found_files)} {ext} files")
-                            
-                            # Search recursively in case VHS creates subdirectories
-                            for ext in video_extensions:
-                                recursive_search = glob.glob(f"/ComfyUI/output/**/{ext}", recursive=True)
-                                if recursive_search:
-                                    all_found_files.extend(recursive_search)
-                                    print(f"  Found {len(recursive_search)} {ext} files recursively")
-                            
-                            if all_found_files:
-                                video_path = max(all_found_files, key=os.path.getmtime)  # Most recent
-                                print(f"✅ Found fallback video: {video_path}")
-                                video_found = True
-                        
-                        # If we found a video file, return it
-                        if video_found and video_path and os.path.exists(video_path):
-                            print(f"📹 Processing video: {video_path}")
-                            
-                            with open(video_path, "rb") as f:
-                                video_base64 = base64.b64encode(f.read()).decode()
-                            
-                            # Clean up input directory after successful generation
-                            try:
-                                shutil.rmtree(input_dir)
-                                print("🧹 Cleaned up input directory after successful generation")
-                            except:
-                                pass  # Not critical if cleanup fails
-                            
+                            if mp4_files:
+                                video_path = max(mp4_files, key=os.path.getmtime)
+                                print(f"✅ Found video: {os.path.basename(video_path)}")
+                                
+                                with open(video_path, "rb") as f:
+                                    video_base64 = base64.b64encode(f.read()).decode()
+                                
+                                return {
+                                    "success": True,
+                                    "video_base64": video_base64,
+                                    "filename": os.path.basename(video_path),
+                                    "resolution": settings.get('resolution', 'Unknown'),
+                                    "duration": elapsed,
+                                    "debug": debug_info
+                                }
+                            else:
+                                all_files = os.listdir("/ComfyUI/output/")
+                                print(f"❌ No video generated. Files: {all_files}")
+                                return {
+                                    "error": "No video file generated",
+                                    "debug": {**debug_info, "output_files": all_files}
+                                }
+                                
+                        except Exception as e:
                             return {
-                                "success": True,
-                                "video_base64": video_base64,
-                                "filename": os.path.basename(video_path),
-                                "resolution": settings.get('resolution', 'Unknown'),
-                                "duration": elapsed,
+                                "error": f"Could not read output directory: {str(e)}",
                                 "debug": debug_info
                             }
-                        
-                        # Debug: List all files for troubleshooting
-                        try:
-                            output_files = os.listdir("/ComfyUI/output/")
-                            print(f"📁 DEBUG - All files in /ComfyUI/output/: {output_files}")
-                        except Exception as e:
-                            print(f"❌ Could not list output directory: {e}")
-                        
-                        # No video found despite completion
-                        return {
-                            "error": "Video generation completed but no output file found",
-                            "debug": {**debug_info, "outputs": outputs}
-                        }
                         
             except requests.exceptions.RequestException as e:
                 print(f"⚠️ Error checking job status: {e}")
             
-            # Check queue status for progress indication
-            try:
-                queue_response = requests.get("http://localhost:8188/queue", timeout=5)
-                if queue_response.ok:
-                    queue_data = queue_response.json()
-                    running = queue_data.get("queue_running", [])
-                    
-                    # If job is still running, update progress tracking
-                    if running:
-                        last_progress_time = time.time()
-                        print(f"⏳ [{elapsed}s] Job still processing...")
-                    elif time.time() - last_progress_time > 60:
-                        # No progress for over 1 minute and not in running queue
-                        return {
-                            "error": "Job appears to be stuck or failed silently",
-                            "debug": debug_info
-                        }
-            except:
-                pass  # Queue check is not critical
-            
+            # Print progress every 30 seconds
+            if elapsed > 0 and elapsed % 30 == 0:
+                print(f"⏳ Generating... ({elapsed}s)")
+                
             time.sleep(check_interval)
         
         return {
