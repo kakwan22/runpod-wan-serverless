@@ -1,6 +1,10 @@
 # EXTENDS BASE IMAGE WITH MODELS 
 FROM kakwan22/wanrunpod:latest
 
+# HF token for model downloads
+ARG HF_TOKEN
+ENV HF_TOKEN=$HF_TOKEN
+
 # Download WAN model (check first - 24GB)
 RUN cd models/checkpoints && \
     if [ ! -f "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" ] || [ $(stat -c%s "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" 2>/dev/null || echo 0) -lt 20000000000 ]; then \
