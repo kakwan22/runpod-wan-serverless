@@ -110,20 +110,9 @@ RUN cd custom_nodes && \
     fi && \
     echo "✅ Custom nodes processed!"
 
-# Install additional dependencies (check first)
-RUN echo "🔍 Checking additional dependencies..." && \
-    missing_deps="" && \
-    for pkg in runpod requests pillow opencv-python-headless; do \
-        if ! python3 -c "import ${pkg//-/_}" 2>/dev/null; then \
-            missing_deps="$missing_deps $pkg"; \
-        fi; \
-    done && \
-    if [ -n "$missing_deps" ]; then \
-        echo "📦 Installing missing dependencies:$missing_deps" && \
-        pip3 install --no-cache-dir $missing_deps; \
-    else \
-        echo "✅ All dependencies already installed!"; \
-    fi
+# Install additional dependencies
+RUN echo "📦 Installing additional dependencies..." && \
+    pip3 install --no-cache-dir runpod requests pillow opencv-python-headless
 
 # Install Hugging Face (check first)
 RUN if ! python3 -c "import huggingface_hub" 2>/dev/null; then \
