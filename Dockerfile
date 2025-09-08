@@ -1,10 +1,12 @@
 # FRESH START - Complete pre-baked image with everything included
 FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04
 
-# Install system dependencies
+# Install system dependencies with retry and better error handling
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends --fix-broken \
     python3 \
     python3-pip \
     git \
@@ -13,6 +15,8 @@ RUN apt-get update && \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    ca-certificates \
+    && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
