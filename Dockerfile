@@ -24,15 +24,30 @@ RUN if [ ! -L /usr/bin/python ]; then \
         echo "✅ Python symlink already exists"; \
     fi
 
-# Clone ComfyUI (check first)
+# Clone ComfyUI with retries
 WORKDIR /
-RUN if [ ! -d "/ComfyUI" ]; then \
-        echo "📥 Cloning ComfyUI..." && \
-        (git clone https://github.com/comfyanonymous/ComfyUI.git || \
-         echo "⚠️ Git clone failed, trying with depth 1..." && \
-         git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git); \
-    else \
-        echo "✅ ComfyUI already exists"; \
+RUN echo "📥 Cloning ComfyUI with multiple fallbacks..." && \
+    for i in 1 2 3; do \
+        if [ ! -d "/ComfyUI" ]; then \
+            echo "🔄 Attempt $i: Cloning ComfyUI..." && \
+            (git clone --depth 1 --single-branch https://github.com/comfyanonymous/ComfyUI.git && break) || \
+            (echo "⚠️ HTTPS failed, trying SSH..." && \
+             git clone --depth 1 --single-branch git@github.com:comfyanonymous/ComfyUI.git && break) || \
+            (echo "⚠️ SSH failed, trying mirror..." && \
+             git clone --depth 1 --single-branch https://gitclone.com/github.com/comfyanonymous/ComfyUI.git && break) || \
+            echo "❌ Attempt $i failed, retrying..."; \
+            sleep 5; \
+        else \
+            echo "✅ ComfyUI already exists"; \
+            break; \
+        fi; \
+    done && \
+    if [ ! -d "/ComfyUI" ]; then \
+        echo "❌ All git clone attempts failed, using wget fallback..." && \
+        wget -O comfyui.zip https://github.com/comfyanonymous/ComfyUI/archive/refs/heads/master.zip && \
+        unzip comfyui.zip && \
+        mv ComfyUI-master ComfyUI && \
+        rm comfyui.zip; \
     fi
 WORKDIR /ComfyUI
 
