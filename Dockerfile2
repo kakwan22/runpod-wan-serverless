@@ -1,12 +1,15 @@
 # EXTENDS BASE IMAGE WITH MODELS 
 FROM kakwan22/wanrunpod:latest
 
+# Set working directory to ComfyUI
+WORKDIR /ComfyUI
+
 # HF token for model downloads
 ARG HF_TOKEN
 ENV HF_TOKEN=$HF_TOKEN
 
-# Force cache bust for model downloads - v2
-RUN echo "Model download cache bust v2"
+# Force cache bust for model downloads - v3
+RUN echo "Model download cache bust v3"
 
 # Download WAN model (check first - 24GB)
 RUN cd models/checkpoints && \
