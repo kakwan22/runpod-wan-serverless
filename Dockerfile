@@ -36,17 +36,23 @@ RUN if [ ! -d "/ComfyUI" ]; then \
     fi
 WORKDIR /ComfyUI
 
-# Install PyTorch (check first, multiple fallbacks)
+# Install PyTorch (check first, smart CUDA fallbacks)
 RUN echo "🔍 Checking PyTorch installation..." && \
     if ! python3 -c "import torch; print(f'Found PyTorch {torch.__version__}')" 2>/dev/null; then \
         echo "🔧 Installing PyTorch with CUDA support..." && \
         (pip3 install --no-cache-dir --break-system-packages --upgrade --force-reinstall \
          torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
          --index-url https://download.pytorch.org/whl/cu128 || \
-         echo "⚠️ CUDA install failed, trying CPU fallback..." && \
-         pip3 install --no-cache-dir --break-system-packages torch torchvision torchaudio || \
-         echo "⚠️ Pip install failed, trying conda fallback..." && \
-         apt-get update && apt-get install -y python3-torch python3-torchvision) && \
+         echo "⚠️ CUDA 12.8 failed, trying CUDA 12.1 fallback..." && \
+         pip3 install --no-cache-dir --break-system-packages --upgrade --force-reinstall \
+         torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
+         --index-url https://download.pytorch.org/whl/cu121 || \
+         echo "⚠️ Specific versions failed, trying latest CUDA build..." && \
+         pip3 install --no-cache-dir --break-system-packages \
+         torch torchvision torchaudio \
+         --index-url https://download.pytorch.org/whl/cu128 || \
+         echo "⚠️ Index URL failed, trying direct pip with CUDA..." && \
+         pip3 install --no-cache-dir --break-system-packages torch[cuda] torchvision torchaudio) && \
         echo "✅ PyTorch installed successfully!"; \
     else \
         echo "✅ PyTorch already installed!"; \
