@@ -25,9 +25,9 @@ def start_comfyui():
 
     print("Starting ComfyUI server...")
     
-    # Start ComfyUI in background
+    # Start ComfyUI in background with GPU acceleration
     process = subprocess.Popen([
-        "python", "main.py", "--listen", "--force-fp16", "--disable-xformers", "--enable-cors-header"
+        "python", "main.py", "--listen", "--force-fp16", "--disable-xformers", "--enable-cors-header", "--cuda-device", "0"
     ], 
         cwd="/ComfyUI",
         stdout=subprocess.DEVNULL,
