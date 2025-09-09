@@ -229,6 +229,31 @@ def handler(job):
                 "debug": debug_info
             }
         
+        # Create symlinks so ComfyUI can find models in default locations
+        print("🔗 Creating symlinks for ComfyUI...")
+        try:
+            # Ensure target directories exist
+            os.makedirs("/ComfyUI/models/checkpoints", exist_ok=True)
+            os.makedirs("/ComfyUI/models/clip_vision", exist_ok=True)
+            
+            # Create symlink for WAN model
+            wan_target = "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
+            wan_source = "/runpod-volume/checkpoints/v10/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
+            if not os.path.exists(wan_target):
+                os.symlink(wan_source, wan_target)
+                print(f"✅ Created symlink: {wan_target} -> {wan_source}")
+            
+            # Create symlink for CLIP model  
+            clip_target = "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
+            clip_source = "/runpod-volume/clip_vision/clip_vision_vit_h.safetensors"
+            if not os.path.exists(clip_target):
+                os.symlink(clip_source, clip_target)
+                print(f"✅ Created symlink: {clip_target} -> {clip_source}")
+                
+        except Exception as e:
+            print(f"⚠️ Warning: Could not create symlinks: {e}")
+            # Continue anyway - handler validation already confirmed files exist
+        
         # Start ComfyUI if not running
         if not start_comfyui():
             return {"error": "Failed to start ComfyUI server", "debug": debug_info}
