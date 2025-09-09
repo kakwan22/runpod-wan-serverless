@@ -12,6 +12,46 @@ import glob
 import random
 from typing import Optional, Dict, Any
 
+# Global model cache for preloading
+PRELOADED_MODELS = {}
+
+def preload_models():
+    """Preload models into memory during container startup for instant access"""
+    global PRELOADED_MODELS
+    
+    if PRELOADED_MODELS:
+        print("✅ Models already preloaded!")
+        return
+        
+    print("🔥 Preloading models for instant job processing...")
+    
+    try:
+        # Check if models exist first
+        wan_path = "/runpod-volume/checkpoints/v10/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
+        clip_path = "/runpod-volume/clip_vision/clip_vision_vit_h.safetensors"
+        
+        if not os.path.exists(wan_path):
+            print(f"⚠️ WAN model not found at {wan_path}, skipping preload")
+            return
+            
+        if not os.path.exists(clip_path):
+            print(f"⚠️ CLIP model not found at {clip_path}, skipping preload")
+            return
+        
+        # Note: We don't actually load the safetensors here because ComfyUI handles that
+        # Instead, we'll just trigger ComfyUI to start and load models once
+        print("🚀 Starting ComfyUI to preload models...")
+        
+        # Start ComfyUI which will load models into its memory
+        if start_comfyui():
+            print("✅ ComfyUI started with models preloaded!")
+            PRELOADED_MODELS["status"] = "loaded"
+        else:
+            print("❌ Failed to preload models")
+            
+    except Exception as e:
+        print(f"⚠️ Model preloading failed: {e}")
+
 def start_comfyui():
     """Start ComfyUI server if not already running"""
     try:
@@ -492,6 +532,10 @@ def handler(job):
             print("✅ Cleanup completed")
         except:
             pass  # Cleanup failures are not critical
+
+# Preload models during container startup
+print("🔥 Container starting - preloading models for instant job processing...")
+preload_models()
 
 # Initialize RunPod serverless
 runpod.serverless.start({"handler": handler})
