@@ -37,8 +37,11 @@ RUN pip3 install --no-cache-dir "huggingface_hub[hf_transfer]"
 # Set environment for fast downloads
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 
-# CUDA optimizations for better performance
-ENV PYTORCH_CUDA_ALLOC_CONF=backend:cudaMallocAsync
+# CUDA optimizations and Docker GPU runtime fixes
+ENV PYTORCH_CUDA_ALLOC_CONF=backend:cudaMallocAsync,max_split_size_mb:128,expandable_segments:True
+ENV CUDA_VISIBLE_DEVICES=0
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 # HF token (not needed anymore but keeping for compatibility)
 ARG HF_TOKEN
