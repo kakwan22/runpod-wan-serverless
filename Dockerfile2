@@ -8,27 +8,13 @@ WORKDIR /ComfyUI
 ARG HF_TOKEN
 ENV HF_TOKEN=$HF_TOKEN
 
-# Force cache bust for model downloads - v7
-RUN echo "Model download cache bust v7"
+# Force cache bust for model downloads - v8
+RUN echo "Model download cache bust v8"
 
 # Ensure directories exist and clean up any existing models
 RUN mkdir -p models/checkpoints models/clip_vision && \
     rm -rf models/checkpoints/* models/clip_vision/* || true
 
-# Download models and move to exact expected locations
-RUN echo "Starting model downloads..." && \
-    hf download --local-dir /tmp/wan_download Phr00t/WAN2.2-14B-Rapid-AllInOne v10/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors && \
-    echo "Downloaded to temp, checking structure..." && \
-    find /tmp/wan_download -name "*.safetensors" -type f && \
-    echo "Moving WAN model to final location..." && \
-    find /tmp/wan_download -name "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" -exec cp {} /ComfyUI/models/checkpoints/ \; && \
-    echo "Starting CLIP Vision download..." && \
-    hf download --local-dir /tmp/clip_download lllyasviel/misc clip_vision_vit_h.safetensors && \
-    echo "Downloaded CLIP, checking structure..." && \
-    find /tmp/clip_download -name "*.safetensors" -type f && \
-    echo "Moving CLIP model to final location..." && \
-    find /tmp/clip_download -name "clip_vision_vit_h.safetensors" -exec cp {} /ComfyUI/models/clip_vision/ \; && \
-    echo "Final verification:" && \
-    ls -la /ComfyUI/models/checkpoints/ && \
-    ls -la /ComfyUI/models/clip_vision/ && \
-    rm -rf /tmp/wan_download /tmp/clip_download
+# Simple direct download - RunPod recommended approach
+RUN huggingface-cli download Phr00t/WAN2.2-14B-Rapid-AllInOne v10/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors --local-dir /ComfyUI/models/checkpoints --local-dir-use-symlinks False
+RUN huggingface-cli download lllyasviel/misc clip_vision_vit_h.safetensors --local-dir /ComfyUI/models/clip_vision --local-dir-use-symlinks False
