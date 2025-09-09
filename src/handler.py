@@ -25,9 +25,9 @@ def start_comfyui():
 
     print("Starting ComfyUI server...")
     
-    # Start ComfyUI in background with high VRAM usage but smart management
+    # Start ComfyUI with same flags as local (no VRAM flags = smart management)
     process = subprocess.Popen([
-        "python", "main.py", "--listen", "--force-fp16", "--disable-xformers", "--enable-cors-header", "--highvram"
+        "python", "main.py", "--listen", "--force-fp16", "--disable-xformers", "--enable-cors-header"
     ], 
         cwd="/ComfyUI",
         stdout=subprocess.DEVNULL,
