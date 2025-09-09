@@ -258,6 +258,53 @@ def handler(job):
         if not start_comfyui():
             return {"error": "Failed to start ComfyUI server", "debug": debug_info}
         
+        # Log detailed model information for debugging
+        print("📊 MODEL INFO:")
+        try:
+            import torch
+            
+            # Check WAN model details
+            wan_path = "/runpod-volume/checkpoints/v10/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors"
+            print(f"🔍 WAN Model: {os.path.basename(wan_path)}")
+            print(f"📏 WAN Size: {os.path.getsize(wan_path) / (1024**3):.2f} GB")
+            
+            # Check CLIP model details  
+            clip_path = "/runpod-volume/clip_vision/clip_vision_vit_h.safetensors"
+            print(f"🔍 CLIP Model: {os.path.basename(clip_path)}")
+            print(f"📏 CLIP Size: {os.path.getsize(clip_path) / (1024**3):.2f} GB")
+            
+            # Log key workflow settings
+            print("⚙️ WORKFLOW SETTINGS:")
+            if workflow:
+                # Check checkpoint loader settings
+                if "2" in workflow and "inputs" in workflow["2"]:
+                    ckpt_name = workflow["2"]["inputs"].get("ckpt_name", "unknown")
+                    print(f"🎯 Checkpoint: {ckpt_name}")
+                
+                # Check sampling settings
+                if "9" in workflow and "inputs" in workflow["9"]:
+                    sampler_info = workflow["9"]["inputs"]
+                    print(f"🎲 Seed: {sampler_info.get('seed', 'unknown')}")
+                    print(f"📈 Steps: {sampler_info.get('steps', 'unknown')}")
+                    print(f"🎚️ CFG: {sampler_info.get('cfg', 'unknown')}")
+                    print(f"🔧 Sampler: {sampler_info.get('sampler_name', 'unknown')}")
+                    print(f"📅 Scheduler: {sampler_info.get('scheduler', 'unknown')}")
+                    print(f"🎭 Denoise: {sampler_info.get('denoise', 'unknown')}")
+                
+                # Check model shift settings
+                if "7" in workflow and "inputs" in workflow["7"]:
+                    shift = workflow["7"]["inputs"].get("shift", "unknown")
+                    print(f"↔️ Model Shift: {shift}")
+                    
+                # Check video settings
+                if "8" in workflow and "inputs" in workflow["8"]:
+                    video_info = workflow["8"]["inputs"]
+                    print(f"📐 Resolution: {video_info.get('width', '?')}x{video_info.get('height', '?')}")
+                    print(f"⏱️ Length: {video_info.get('length', '?')} frames")
+                    
+        except Exception as e:
+            print(f"⚠️ Could not log model info: {e}")
+        
         # Extract job input from our Video Generator App
         job_input = job.get("input", {})
         
