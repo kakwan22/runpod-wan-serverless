@@ -1,30 +1,22 @@
-# MINIMAL RUNPOD DOCKERFILE - PyTorch 2.7.1 + CUDA 12.8 
-FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
+# COMBINED DOCKERFILE - Uses Network Storage for Models
+FROM runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04
 
-# Install system packages
+# Install additional system packages we need
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
-    python3 python3-pip git wget curl ffmpeg \
+    git wget curl ffmpeg \
     libgl1-mesa-glx libglib2.0-0 ca-certificates unzip \
     && rm -rf /var/lib/apt/lists/*
-
-# Set python3 as default
-RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 # Clone ComfyUI
 WORKDIR /
 RUN git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git
 WORKDIR /ComfyUI
 
-# Install PyTorch 2.7.1 + CUDA 12.8
-RUN pip3 install --no-cache-dir \
-    torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
-    --index-url https://download.pytorch.org/whl/cu128
-
 # Install ComfyUI requirements
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Create directories
+# Create directories (network storage will mount over models/)
 RUN mkdir -p models/checkpoints models/clip_vision models/vae custom_nodes input output
 
 # Install custom nodes
@@ -45,26 +37,18 @@ RUN pip3 install --no-cache-dir "huggingface_hub[hf_transfer]"
 # Set environment for fast downloads
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 
-# HF token
+# HF token (not needed anymore but keeping for compatibility)
 ARG HF_TOKEN
 ENV HF_TOKEN=$HF_TOKEN
 
-# Download WAN model (check first - 24GB)
-RUN cd models/checkpoints && \
-    if [ ! -f "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" ] || [ $(stat -c%s "wan2.2-i2v-rapid-aio-v10-nsfw.safetensors" 2>/dev/null || echo 0) -lt 20000000000 ]; then \
-        echo "Downloading WAN 2.2 model..." && \
-        hf download Phr00t/WAN2.2-14B-Rapid-AllInOne v10/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors; \
-    fi
-
-# Download CLIP Vision model (check first - 1.7GB)
-RUN cd models/clip_vision && \
-    if [ ! -f "clip_vision_vit_h.safetensors" ] || [ $(stat -c%s "clip_vision_vit_h.safetensors" 2>/dev/null || echo 0) -lt 1000000000 ]; then \
-        echo "Downloading CLIP Vision model..." && \
-        hf download lllyasviel/misc clip_vision_vit_h.safetensors; \
-    fi
-
 # Copy handler
 COPY src/handler.py /handler.py
+
+# Cleanup to reduce size
+RUN rm -rf /root/.cache/pip/* && \
+    find /usr -name "*.pyc" -delete && \
+    find /usr -name "__pycache__" -delete && \
+    rm -rf /tmp/*
 
 # Start handler
 CMD ["python3", "/handler.py"]

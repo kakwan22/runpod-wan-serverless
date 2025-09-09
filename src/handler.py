@@ -204,11 +204,11 @@ def handler(job):
         # Collect debug info to return in response
         debug_info = {"handler_version": "2025-01-07", "job_id": job.get("id", "unknown")}
         
-        # Validate required models (no volume, models downloaded in Docker build)
+        # Models are now on network storage at /runpod-volume/
         required_models = {
-            "wan_model": "/ComfyUI/models/checkpoints/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors",
+            "wan_model": "/runpod-volume/checkpoints/v10/wan2.2-i2v-rapid-aio-v10-nsfw.safetensors",
             # VAE is built into the checkpoint, no separate file needed
-            "clip_vision": "/ComfyUI/models/clip_vision/clip_vision_vit_h.safetensors"
+            "clip_vision": "/runpod-volume/clip_vision/clip_vision_vit_h.safetensors"
         }
         
         # Check models
