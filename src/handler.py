@@ -25,9 +25,9 @@ def start_comfyui():
 
     print("Starting ComfyUI server...")
     
-    # Start ComfyUI in background with GPU acceleration
+    # Start ComfyUI in background with smart GPU usage (not forcing everything into VRAM)
     process = subprocess.Popen([
-        "python", "main.py", "--listen", "--force-fp16", "--disable-xformers", "--enable-cors-header", "--gpu-only"
+        "python", "main.py", "--listen", "--force-fp16", "--disable-xformers", "--enable-cors-header", "--highvram"
     ], 
         cwd="/ComfyUI",
         stdout=subprocess.DEVNULL,
